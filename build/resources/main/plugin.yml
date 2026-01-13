@@ -1,0 +1,8 @@
+name: magic-mechanism
+version: '1.0-SNAPSHOT'
+main: org.example.artyom.magicMechanism.MagicMechanism
+api-version: '1.21'
+
+commands:
+  getgen:
+    description: Выдает кастомный генератор
