@@ -55,7 +55,7 @@ public class GeneratorUtil {
         return block;
     }
 
-    public static ItemStack createItem( String displayName, String lore1) {
+    public static ItemStack createGenerator() {
         ItemStack item = new ItemStack(Material.DROPPER, 1);
         ItemMeta meta = item.getItemMeta();
 
@@ -65,7 +65,7 @@ public class GeneratorUtil {
                 PersistentDataType.STRING,
                 "energy_transformer"
         );
-        meta.setLore(Arrays.asList(lore1));
+        meta.setLore(Arrays.asList("Ващ генератор"));
         item.setItemMeta(meta);
         return item;
     }

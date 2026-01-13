@@ -17,7 +17,7 @@ public class GeneratorCommands implements CommandExecutor {
         if(command.getName().equalsIgnoreCase("getgen")){
             if(commandSender instanceof Player p){
                 p.sendMessage("Выдан генератор");
-                ItemStack item = GeneratorUtil.createItem("Генератор",  "Ваш кастомный генератор");
+                ItemStack item = GeneratorUtil.createGenerator();
 
 
                 p.getInventory().setItemInMainHand(item);
