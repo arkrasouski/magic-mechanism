@@ -1,22 +1,26 @@
 package org.example.artyom.magicMechanism.utils;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.example.artyom.magicMechanism.Keys;
 import org.example.artyom.magicMechanism.MagicMechanism;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 
 public class GeneratorUtil {
-    private final static NamespacedKey MECHANISM_CLASS_KEY = new NamespacedKey(MagicMechanism.getInstance(), "mechanism_item");
 
     public static boolean isGenerator(Block block){
         if (block == null) return false;
@@ -32,7 +36,7 @@ public class GeneratorUtil {
         PersistentDataContainer pdc = tile.getPersistentDataContainer();
 
         // Проверяем наш ключ
-        String type = pdc.get(MECHANISM_CLASS_KEY , PersistentDataType.STRING);
+        String type = pdc.get(Keys.MACHINE_TYPE , PersistentDataType.STRING);
 
         return "energy_transformer".equals(type);
     }
@@ -46,7 +50,7 @@ public class GeneratorUtil {
         BlockState state = block.getState();
         if (state instanceof TileState tileState) {
             tileState.getPersistentDataContainer().set(
-                    MECHANISM_CLASS_KEY,
+                    Keys.MACHINE_TYPE,
                     PersistentDataType.STRING,
                     "energy_transformer"
             );
@@ -61,11 +65,12 @@ public class GeneratorUtil {
 
         meta.setDisplayName("§bЭнерго трансформатор");
         meta.getPersistentDataContainer().set(
-                MECHANISM_CLASS_KEY,
+                Keys.MACHINE_TYPE,
                 PersistentDataType.STRING,
                 "energy_transformer"
         );
-        meta.setLore(Arrays.asList("Ващ генератор"));
+        //meta.setCustomModelData(1001);
+        meta.setLore(Arrays.asList("Ваш генератор"));
         item.setItemMeta(meta);
         return item;
     }
@@ -82,12 +87,12 @@ public class GeneratorUtil {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
 
         // Проверяем наш ключ
-        String type = pdc.get(MECHANISM_CLASS_KEY , PersistentDataType.STRING);
+        String type = pdc.get(Keys.MACHINE_TYPE , PersistentDataType.STRING);
 
         return "energy_transformer".equals(type);
     }
 
-    public static void markAsEnergyTransformer(Block block) {
+    public static void setEnergyTransformer(Block block) {
         if (block == null) return;
 
         // Убеждаемся, что это нужный базовый блок
@@ -104,11 +109,22 @@ public class GeneratorUtil {
 
         // Помечаем блок как наш механизм
         pdc.set(
-                MECHANISM_CLASS_KEY,
+                Keys.MACHINE_TYPE,
                 PersistentDataType.STRING,
                 "energy_transformer"
         );
+        pdc.set(Keys.BUFFER,  PersistentDataType.LONG, 0L);
+        pdc.set(Keys.FREQ, PersistentDataType.INTEGER, 5);
 
+        //Location loc = block.getLocation().add(0.5, 0, 0.5);
+        //ItemDisplay display = (ItemDisplay) block.getWorld().spawnEntity(loc, EntityType.ITEM_DISPLAY);
+        //display.setItemStack(GeneratorUtil.createGenerator()); // с CustomModelData
+        //display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+        //display.setBrightness(new Display.Brightness(15, 15));
+
+
+        //pdc.set(ENTITY_ID_KEY, PersistentDataType.INTEGER, (int)display.getEntityId());
+        tile.update();
         // Начальные данные (по желанию)
 //        pdc.set(
 //                new NamespacedKey(plugin, "energy"),
@@ -121,7 +137,9 @@ public class GeneratorUtil {
 //                PersistentDataType.INTEGER,
 //                60
 //        );
+    }
 
-        tile.update(); // ОБЯЗАТЕЛЬНО
+    public static String getGeneratorType(TileState tile) {
+        return tile.getPersistentDataContainer().get(Keys.MACHINE_TYPE, PersistentDataType.STRING);
     }
 }

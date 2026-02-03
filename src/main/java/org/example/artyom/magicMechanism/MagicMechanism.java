@@ -13,8 +13,9 @@ public final class MagicMechanism extends JavaPlugin {
     public void onEnable() {
         // Plugin startup logic
         instance = this;
-
+        Keys.init(this);
         getCommand("getgen").setExecutor(new GeneratorCommands());
+        getCommand("givecell").setExecutor(new GeneratorCommands());
         Bukkit.getPluginManager().registerEvents(new GeneratorEvents(), this);
     }
 

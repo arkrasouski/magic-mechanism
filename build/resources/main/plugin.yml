@@ -6,3 +6,5 @@ api-version: '1.21'
 commands:
   getgen:
     description: Выдает кастомный генератор
+  givecell:
+    description: Выдает аккумулятор

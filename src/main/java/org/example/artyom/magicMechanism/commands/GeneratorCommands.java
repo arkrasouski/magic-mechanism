@@ -7,6 +7,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
 import org.example.artyom.magicMechanism.utils.GeneratorUtil;
 import org.example.artyom.magicMechanism.utils.ItemUtil;
 import org.jetbrains.annotations.NotNull;
@@ -21,8 +22,19 @@ public class GeneratorCommands implements CommandExecutor {
 
 
                 p.getInventory().setItemInMainHand(item);
+                return true;
             }
         }
-        return true;
-    }
+
+        if (command.getName().equalsIgnoreCase("givecell")) {
+
+            if(commandSender instanceof Player p){
+
+                p.getInventory().setItemInMainHand(EnergyCellUtil.makeEnergyCell(1000, 200, 5));
+                return true;
+            }
+        }
+
+    return true;
+}
 }
