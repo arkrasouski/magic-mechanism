@@ -2,8 +2,10 @@ package org.example.artyom.magicMechanism;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.example.artyom.magicMechanism.commands.GeneratorCommands;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
+import org.example.artyom.magicMechanism.service.GeneratorService;
 
 public final class MagicMechanism extends JavaPlugin {
 
@@ -17,6 +19,12 @@ public final class MagicMechanism extends JavaPlugin {
         getCommand("getgen").setExecutor(new GeneratorCommands());
         getCommand("givecell").setExecutor(new GeneratorCommands());
         Bukkit.getPluginManager().registerEvents(new GeneratorEvents(), this);
+
+        new BukkitRunnable() {
+            @Override public void run() {
+                GeneratorService.tickAll();
+            }
+        }.runTaskTimer(this, 1L, 20L); // period == между повторами, delay == стартовая задержка
     }
 
     @Override

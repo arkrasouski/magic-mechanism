@@ -21,6 +21,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.Keys;
 import org.example.artyom.magicMechanism.MagicMechanism;
+import org.example.artyom.magicMechanism.service.GeneratorService;
 import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
 import org.example.artyom.magicMechanism.utils.GeneratorUtil;
 import org.example.artyom.magicMechanism.utils.ToolUtil;
@@ -97,11 +98,16 @@ public class GeneratorEvents implements Listener {
                     + " частота=" + freq);
         }
     }
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler
     public void onClickEnergySlot(InventoryClickEvent e) {
         //System.out.println("inevent");
         Inventory top = e.getView().getTopInventory();
-        if (top.getType() != InventoryType.DROPPER) return;
+        InventoryHolder holder = top.getHolder();
+        if (!(holder instanceof TileState tile)) return;
+        if (tile.getType() != Material.DROPPER) return;
+
+        String type = GeneratorUtil.getGeneratorType(tile);
+        if (!"energy_transformer".equals(type)) return;
 
         // Клик по верхнему инвентарю (сам дроппер)
         if (e.getClickedInventory() == null) return;
@@ -118,6 +124,10 @@ public class GeneratorEvents implements Listener {
                 Player p = (Player) e.getWhoClicked();
                 p.sendMessage("Аккумулятор вставлен в слот 1!");
                 // тут можешь запускать логику зарядки/линка
+                GeneratorService.onCellInserted(tile.getLocation());
+            }
+            else {
+                GeneratorService.onCellRemoved(tile.getLocation());
             }
         });
     }

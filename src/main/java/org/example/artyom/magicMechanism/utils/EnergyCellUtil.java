@@ -43,4 +43,28 @@ public class EnergyCellUtil {
 
         return "EnergyCell".equals(type);
     }
+
+
+    public static long getEnergy(ItemStack cell) {
+        ItemMeta meta = cell.getItemMeta();
+        if (meta == null) return 0L;
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        return pdc.getOrDefault(Keys.CELL_ENERGY, PersistentDataType.LONG, 0L); // getOrDefault [web:19]
+    }
+
+    public static void setEnergy(ItemStack cell, long newEnergy) {
+        if (cell == null || cell.getType().isAir()) return;
+
+        ItemMeta meta = cell.getItemMeta();
+        if (meta == null) return;
+
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        long cap = pdc.getOrDefault(Keys.CELL_CAP, PersistentDataType.LONG, 0L);
+
+        long clamped = Math.max(0L, Math.min(newEnergy, cap));
+        pdc.set(Keys.CELL_ENERGY, PersistentDataType.LONG, clamped); // set [web:19]
+
+        cell.setItemMeta(meta);
+    }
 }
