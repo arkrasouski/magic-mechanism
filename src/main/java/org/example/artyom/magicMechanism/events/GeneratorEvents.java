@@ -22,62 +22,16 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.Keys;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.service.GeneratorService;
+import org.example.artyom.magicMechanism.utils.BaseMechanismUtil;
 import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
 import org.example.artyom.magicMechanism.utils.GeneratorUtil;
 import org.example.artyom.magicMechanism.utils.ToolUtil;
 
-public class GeneratorEvents implements Listener {
-//    @EventHandler
-//    public void onClick(PlayerInteractEvent e) {
-//        if (e.getClickedBlock() == null) return;
-//
-//        Block block = e.getClickedBlock();
-//        if (!GeneratorUtil.isGenerator(block)) return;
-//
-//        //e.setCancelled(true);
-//        e.getPlayer().sendMessage("Энерго трансформатор активирован!");
-//    }
+public class GeneratorEvents extends BaseMechanismEvents {
 
-    @EventHandler
-    public void onPlace(BlockPlaceEvent e) {
 
-        ItemStack item = e.getItemInHand();
-        if (!GeneratorUtil.isGeneratorItem(item)) return;
-
-        Block block = e.getBlockPlaced();
-        GeneratorUtil.setEnergyTransformer(block);
-    }
-
-    @EventHandler
-    public void onBreak(BlockBreakEvent e) {
-        Block block = e.getBlock();
-        Player player = e.getPlayer();
-
-        // Проверяем, что это наш генератор
-        if (!GeneratorUtil.isGenerator(block)) return;
-
-        ItemStack tool = player.getInventory().getItemInMainHand();
-
-        // Проверяем, что инструмент — кирка
-        if (!ToolUtil.isPickaxe(tool)) {
-
-                    e.setCancelled(true);
-            player.sendMessage("§cГенератор можно сломать только киркой!");
-            return;
-        }
-
-        // Отменяем обычный дроп
-        e.setDropItems(false);
-        if (block.getState() instanceof org.bukkit.block.Container cont) {
-            cont.getInventory().clear();
-            cont.update(true); // применить изменения к tile entity
-        }
-        // Удаляем блок
-        block.setType(Material.AIR);
-
-        // Дропаем предмет генератора
-        ItemStack generatorItem = GeneratorUtil.createGenerator(); // но с данными блока!
-        block.getWorld().dropItemNaturally(block.getLocation(), generatorItem);
+    public GeneratorEvents() {
+        super(new GeneratorUtil());
     }
 
     @EventHandler
@@ -87,27 +41,26 @@ public class GeneratorEvents implements Listener {
         if (!(holder instanceof TileState tile)) return;
         if (tile.getType() != Material.DROPPER) return;
 
-        String type = GeneratorUtil.getGeneratorType(tile);
-        if (!"energy_transformer".equals(type)) return;
+        String type = this.mechanism.getMechanismType(tile);
+        if (!this.mechanism.getKey_type().equals(type)) return;
 
-        long buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.LONG, 0L);
-        int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, 5);
+        long buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+        int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, this.mechanism.getFrequency());
 
         if (e.getPlayer() instanceof Player p) {
-            p.sendMessage(ChatColor.YELLOW + "Трансформатор: энергия=" + buf + "/" + 300
+            p.sendMessage(ChatColor.YELLOW + this.mechanism.getName() + ": энергия=" + buf + "/" + this.mechanism.getCapacity()
                     + " частота=" + freq);
         }
     }
     @EventHandler
     public void onClickEnergySlot(InventoryClickEvent e) {
-        //System.out.println("inevent");
         Inventory top = e.getView().getTopInventory();
         InventoryHolder holder = top.getHolder();
         if (!(holder instanceof TileState tile)) return;
-        if (tile.getType() != Material.DROPPER) return;
+        if (tile.getType() != this.mechanism.getMaterial()) return;
 
-        String type = GeneratorUtil.getGeneratorType(tile);
-        if (!"energy_transformer".equals(type)) return;
+        String type = this.mechanism.getMechanismType(tile);
+        if (!this.mechanism.getKey_type().equals(type)) return;
 
         // Клик по верхнему инвентарю (сам дроппер)
         if (e.getClickedInventory() == null) return;

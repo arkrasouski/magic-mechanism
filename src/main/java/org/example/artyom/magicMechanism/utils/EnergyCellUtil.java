@@ -10,16 +10,21 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.example.artyom.magicMechanism.Keys;
 import org.example.artyom.magicMechanism.MagicMechanism;
 
+import java.util.Arrays;
+
 public class EnergyCellUtil {
 
-    public static ItemStack makeEnergyCell(long capacity, long energy, int freq) {
+    public static ItemStack makeEnergyCell(int capacity, int energy, int freq) {
         ItemStack cell = new ItemStack(Material.NETHER_STAR);
         ItemMeta meta = cell.getItemMeta();
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         pdc.set(Keys.CELL, PersistentDataType.STRING, "EnergyCell");
-        pdc.set(Keys.CELL_CAP, PersistentDataType.LONG, capacity);
-        pdc.set(Keys.CELL_ENERGY,  PersistentDataType.LONG, Math.min(energy, capacity));
+        pdc.set(Keys.CELL_CAP, PersistentDataType.INTEGER, capacity);
+        int current_energy = Math.min(energy, capacity);
+        pdc.set(Keys.CELL_ENERGY,  PersistentDataType.INTEGER, current_energy );
+        meta.setLore(Arrays.asList("energy: " + current_energy + "/" + capacity));
+
         pdc.set(Keys.FREQ,  PersistentDataType.INTEGER, freq);
 
         meta.setDisplayName("Энерго-блок");
@@ -45,26 +50,26 @@ public class EnergyCellUtil {
     }
 
 
-    public static long getEnergy(ItemStack cell) {
+    public static int getEnergy(ItemStack cell) {
         ItemMeta meta = cell.getItemMeta();
-        if (meta == null) return 0L;
+        if (meta == null) return 0;
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        return pdc.getOrDefault(Keys.CELL_ENERGY, PersistentDataType.LONG, 0L); // getOrDefault [web:19]
+        return pdc.getOrDefault(Keys.CELL_ENERGY, PersistentDataType.INTEGER, 0); // getOrDefault [web:19]
     }
 
-    public static void setEnergy(ItemStack cell, long newEnergy) {
+    public static void setEnergy(ItemStack cell, int newEnergy) {
         if (cell == null || cell.getType().isAir()) return;
 
         ItemMeta meta = cell.getItemMeta();
         if (meta == null) return;
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        long cap = pdc.getOrDefault(Keys.CELL_CAP, PersistentDataType.LONG, 0L);
+        int cap = pdc.getOrDefault(Keys.CELL_CAP, PersistentDataType.INTEGER, 0);
 
-        long clamped = Math.max(0L, Math.min(newEnergy, cap));
-        pdc.set(Keys.CELL_ENERGY, PersistentDataType.LONG, clamped); // set [web:19]
-
+        int clamped = Math.max(0, Math.min(newEnergy, cap));
+        pdc.set(Keys.CELL_ENERGY, PersistentDataType.INTEGER, clamped); // set [web:19]
+        meta.setLore(Arrays.asList("energy: " + clamped + "/" + cap));
         cell.setItemMeta(meta);
     }
 }

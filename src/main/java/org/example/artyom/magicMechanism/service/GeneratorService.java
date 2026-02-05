@@ -32,44 +32,44 @@ public class GeneratorService {
 
     // вызывать раз в тик или раз в 20 тиков из BukkitRunnable
     public static void tickAll() {
-        ACTIVE.removeIf(loc -> !tickOne(loc));
+        ACTIVE.removeIf(loc -> !tickOne(loc, new GeneratorUtil()));
     }
 
     // true = оставить активным, false = убрать из ACTIVE
-    private static boolean tickOne(Location loc) {
+    private static boolean tickOne(Location loc, GeneratorUtil generator) {
         World w = loc.getWorld();
         if (w == null) return false;
 
         Block b = w.getBlockAt(loc);
-        if (b.getType() != Material.DROPPER) return false;
+        if (b.getType() != generator.getMaterial()) return false;
 
         if (!(b.getState() instanceof TileState tile)) return false;
-        if (!GeneratorUtil.isGenerator(b)) return false; // твой PDC machine_type
+        if (!generator.isMechanismBlock(b)) return false; // твой PDC machine_type
 
         Inventory inv = ((Container) tile).getSnapshotInventory();
         ItemStack cell = inv.getItem(0);
         if (!EnergyCellUtil.isEnergyCell(cell)) return false;
 
-        long cellEnergy = EnergyCellUtil.getEnergy(cell);
+        int cellEnergy = EnergyCellUtil.getEnergy(cell);
         if (cellEnergy <= 0) return true; // батарейка стоит, но пустая
 
-        long buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.LONG, 0L);
-        long bufMax = 300;
-        long movePerTick = 2;
+        int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+        int bufMax = generator.getCapacity();
+        int movePerTick = 2;
 
-        long moved = Math.min(movePerTick, cellEnergy);
+        int moved = Math.min(movePerTick, cellEnergy);
         moved = Math.min(moved, bufMax - buf);
         if (moved <= 0) return true;
 
         // списали с батарейки
-        long before = EnergyCellUtil.getEnergy(cell);
+        int before = EnergyCellUtil.getEnergy(cell);
         EnergyCellUtil.setEnergy(cell, before - moved);
         inv.setItem(0, cell);
-        long after = EnergyCellUtil.getEnergy(inv.getItem(0));
-        System.out.println("before=" + before + " moved=" + moved + " after=" + after);
+       // long after = EnergyCellUtil.getEnergy(inv.getItem(0));
+        //System.out.println("before=" + before + " moved=" + moved + " after=" + after);
 
         // добавили в трансформатор
-        tile.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.LONG, buf + moved);
+        tile.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
         tile.update(true); // сохранить TileState/PDC в мир [web:1]
 
         return true;
