@@ -32,19 +32,19 @@ public class GeneratorService {
 
     // вызывать раз в тик или раз в 20 тиков из BukkitRunnable
     public static void tickAll() {
-        ACTIVE.removeIf(loc -> !tickOne(loc, new GeneratorUtil()));
+        ACTIVE.removeIf(loc -> !tickOne(loc));
     }
 
     // true = оставить активным, false = убрать из ACTIVE
-    private static boolean tickOne(Location loc, GeneratorUtil generator) {
+    private static boolean tickOne(Location loc) {
         World w = loc.getWorld();
         if (w == null) return false;
 
         Block b = w.getBlockAt(loc);
-        if (b.getType() != generator.getMaterial()) return false;
+
 
         if (!(b.getState() instanceof TileState tile)) return false;
-        if (!generator.isMechanismBlock(b)) return false; // твой PDC machine_type
+        if (!GeneratorUtil.isGenerator(b)) return false; // твой PDC machine_type
 
         Inventory inv = ((Container) tile).getSnapshotInventory();
         ItemStack cell = inv.getItem(0);
@@ -54,7 +54,7 @@ public class GeneratorService {
         if (cellEnergy <= 0) return true; // батарейка стоит, но пустая
 
         int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
-        int bufMax = generator.getCapacity();
+        int bufMax = GeneratorUtil.capacity;
         int movePerTick = 2;
 
         int moved = Math.min(movePerTick, cellEnergy);
@@ -73,5 +73,9 @@ public class GeneratorService {
         tile.update(true); // сохранить TileState/PDC в мир [web:1]
 
         return true;
+    }
+
+    public static boolean hasActive() {
+        return !ACTIVE.isEmpty();
     }
 }

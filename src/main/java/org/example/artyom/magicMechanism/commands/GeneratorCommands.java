@@ -30,8 +30,8 @@ public class GeneratorCommands implements CommandExecutor {
         if (command.getName().equalsIgnoreCase("givecell")) {
 
             if(commandSender instanceof Player p){
-
-                p.getInventory().setItemInMainHand(EnergyCellUtil.makeEnergyCell(1000, 200, 5));
+                EnergyCellUtil energyCell = new EnergyCellUtil();
+                p.getInventory().setItemInMainHand(energyCell.makeEnergyItem(150));
                 return true;
             }
         }

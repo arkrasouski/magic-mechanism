@@ -24,7 +24,9 @@ public final class MagicMechanism extends JavaPlugin {
 
         new BukkitRunnable() {
             @Override public void run() {
-                GeneratorService.tickAll();
+                if (GeneratorService.hasActive()) { // твоя проверка
+                    GeneratorService.tickAll();
+                }
             }
         }.runTaskTimer(this, 1L, 20L); // period == между повторами, delay == стартовая задержка
     }

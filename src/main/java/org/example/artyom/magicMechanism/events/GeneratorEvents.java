@@ -72,6 +72,7 @@ public class GeneratorEvents extends BaseMechanismEvents {
         // Поэтому проверяем результат на следующий тик.
         Bukkit.getScheduler().runTask(MagicMechanism.getInstance(), () -> {
             ItemStack inSlot = top.getItem(0);
+
             if (EnergyCellUtil.isEnergyCell(inSlot)) {
                 //System.out.println("isEnergyCell");
                 Player p = (Player) e.getWhoClicked();
