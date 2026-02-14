@@ -41,7 +41,7 @@ public abstract class BaseMechanismEvents implements Listener {
         ItemStack tool = player.getInventory().getItemInMainHand();
 
         // Проверяем, что инструмент — кирка
-        if (!ToolUtil.isPickaxe(tool)) {
+        if (!ToolUtil.canBreakWithTool(player, tool)) {
 
             e.setCancelled(true);
             player.sendMessage("§c" + mechanism.getName() + " можно сломать только киркой!");

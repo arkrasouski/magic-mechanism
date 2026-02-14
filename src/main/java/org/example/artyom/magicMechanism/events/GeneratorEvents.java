@@ -3,46 +3,52 @@ package org.example.artyom.magicMechanism.events;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
-import org.bukkit.entity.Panda;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.Keys;
 import org.example.artyom.magicMechanism.MagicMechanism;
+import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.inventories.GenHolder;
 import org.example.artyom.magicMechanism.inventories.GenStorage;
 import org.example.artyom.magicMechanism.service.GeneratorService;
-import org.example.artyom.magicMechanism.utils.BaseMechanismUtil;
 import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
 import org.example.artyom.magicMechanism.utils.GeneratorUtil;
-import org.example.artyom.magicMechanism.utils.ToolUtil;
-
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class GeneratorEvents extends BaseMechanismEvents {
 
+ private GeneratorGuiManager guiManager;
+
+public GeneratorEvents(GeneratorGuiManager guiManager) {
+    super(new GeneratorUtil());
+    this.guiManager = guiManager;
+}
+
+@EventHandler
+public void onOpen(InventoryOpenEvent e) {
+    if (!(e.getInventory().getHolder() instanceof GenHolder h)) return;
+    guiManager.addViewer(h.getLocation(), e.getPlayer().getUniqueId());
+}
 
 
-    public GeneratorEvents() {
-        super(new GeneratorUtil());
+@EventHandler
+public void onClose(InventoryCloseEvent e) {
+    if (!(e.getView().getTopInventory().getHolder() instanceof GenHolder h)) return;
+
+    guiManager.removeViewer(h.getLocation(), e.getPlayer().getUniqueId());
+    BlockState st = h.getLocation().getBlock().getState();
+    if (st instanceof TileState tile) {
+        GenStorage.saveItems(tile, e.getView().getTopInventory());
     }
-
+}
 @EventHandler
 public void onInteract(PlayerInteractEvent e) {
     if (e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
@@ -95,12 +101,12 @@ public void onInteract(PlayerInteractEvent e) {
             } else {
                 GeneratorService.onCellRemoved(h.getLocation());
             }
-            // КЛЮЧЕВОЕ: синхронизируем PDC сразу
+            // КЛЮЧЕВОЕ: синхронизируем PDC сразу чтобы фоновые тики увидели аккумулятор
             GenStorage.saveItems(tile, top);
         });
     }
     @EventHandler
-    public void onGuiDrag(InventoryDragEvent e) {
+    public void onDragEnergySlot(InventoryDragEvent e) {
         Inventory top = e.getView().getTopInventory();
         if (!(top.getHolder() instanceof GenHolder h)) return;
 

@@ -4,7 +4,6 @@ import org.bukkit.block.TileState;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
-import org.example.artyom.magicMechanism.Keys;
 import org.example.artyom.magicMechanism.utils.ItemStackArrayCodec;
 
 import java.io.IOException;

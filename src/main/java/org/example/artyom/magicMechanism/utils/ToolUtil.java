@@ -1,6 +1,8 @@
 package org.example.artyom.magicMechanism.utils;
 
+import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 public class ToolUtil {
@@ -17,5 +19,9 @@ public class ToolUtil {
                  NETHERITE_PICKAXE -> true;
             default -> false;
         };
+    }
+    public static boolean canBreakWithTool(Player player, ItemStack item) {
+        if (player.getGameMode() == GameMode.CREATIVE) return true; // [web:385]
+        return isPickaxe(item);
     }
 }
