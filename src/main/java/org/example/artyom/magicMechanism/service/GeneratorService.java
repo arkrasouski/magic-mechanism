@@ -14,6 +14,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.Keys;
 import org.example.artyom.magicMechanism.data.BlockPosKey;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
+import org.example.artyom.magicMechanism.inventories.FillGenInventory;
 import org.example.artyom.magicMechanism.inventories.GenHolder;
 import org.example.artyom.magicMechanism.inventories.GenStorage;
 import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
@@ -60,7 +61,7 @@ public final class GeneratorService {
             // истина из PDC
             Inventory tmp = Bukkit.createInventory(null, 27);
             GenStorage.loadItems(tile, tmp);
-            ItemStack cellFromPdc = tmp.getItem(0);
+            ItemStack cellFromPdc = tmp.getItem(9);
 
             uuids.removeIf(uuid -> {
                 Player p = Bukkit.getPlayer(uuid);
@@ -71,9 +72,14 @@ public final class GeneratorService {
 
                 // защита: игрок мог открыть другой генератор
                 if (!BlockPosKey.of(h.getLocation()).equals(k)) return true;
+                PersistentDataContainer genPDC = tile.getPersistentDataContainer();
+                int currentEnergy = genPDC.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+                int capacity = genPDC.getOrDefault(Keys.CAPACITY, PersistentDataType.INTEGER, 0);
+                FillGenInventory.updateEnergyBar(top, (double) (currentEnergy * 100) / capacity);
 
                 // UI-обновление (при желании добавь фильтр, чтобы не перетирать игрока)
-                top.setItem(0, cellFromPdc);
+                if(!EnergyCellUtil.isEnergyCell(cellFromPdc)) return false;
+                top.setItem(9, cellFromPdc);
                 return false;
             });
         });
@@ -93,7 +99,7 @@ public final class GeneratorService {
         Inventory inv = Bukkit.createInventory(null, 27);
         GenStorage.loadItems(tile, inv);
 
-        ItemStack cell = inv.getItem(0);
+        ItemStack cell = inv.getItem(9);
         if (!EnergyCellUtil.isEnergyCell(cell)) return false;
 
         int cellEnergy = EnergyCellUtil.getEnergy(cell);
@@ -108,7 +114,7 @@ public final class GeneratorService {
 
         // Меняем ТОЛЬКО здесь
         EnergyCellUtil.setEnergy(cell, cellEnergy - moved); // внутри обновится lore
-        inv.setItem(0, cell);
+        inv.setItem(9, cell);
 
         pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
 

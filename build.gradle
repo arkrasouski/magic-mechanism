@@ -12,10 +12,12 @@ repositories {
         name = "spigotmc-repo"
         url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
     }
+    maven { url = "https://maven.devs.beer/" }
 }
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly "dev.lone:api-itemsadder:4.0.10"
 }
 
 tasks {

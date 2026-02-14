@@ -8,3 +8,4 @@ commands:
     description: Выдает кастомный генератор
   givecell:
     description: Выдает аккумулятор
+depend: [ItemsAdder]
