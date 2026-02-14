@@ -21,11 +21,12 @@ public final class MagicMechanism extends JavaPlugin {
         getCommand("givecell").setExecutor(new GeneratorCommands());
         Bukkit.getPluginManager().registerEvents(new GeneratorEvents(), this);
         Bukkit.getPluginManager().registerEvents(new BarrierEvents(), this);
+        Bukkit.getPluginManager().registerEvents(new GeneratorService(), this);
 
         new BukkitRunnable() {
             @Override public void run() {
                 if (GeneratorService.hasActive()) { // твоя проверка
-                    GeneratorService.tickAll();
+                    GeneratorService.tickOpenGuis();
                 }
             }
         }.runTaskTimer(this, 1L, 20L); // period == между повторами, delay == стартовая задержка

@@ -51,6 +51,7 @@ public abstract class BaseEnergyItem {
 
 
     public static int getEnergy(ItemStack cell) {
+        if (cell == null || cell.getType() == Material.AIR) return 0;
         ItemMeta meta = cell.getItemMeta();
         if (meta == null) return 0;
 

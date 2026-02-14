@@ -1,25 +1,38 @@
 package org.example.artyom.magicMechanism.service;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
 import org.bukkit.block.TileState;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.Keys;
+import org.example.artyom.magicMechanism.inventories.GenHolder;
+import org.example.artyom.magicMechanism.inventories.GenStorage;
 import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
 import org.example.artyom.magicMechanism.utils.GeneratorUtil;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class GeneratorService {
-    private GeneratorService() {}
+public final class GeneratorService implements Listener {
+    private static final Map<String, Set<UUID>> viewers = new ConcurrentHashMap<>();
 
-    // список активных трансформаторов (где есть батарейка)
+    public GeneratorService() {}
+
     private static final Set<Location> ACTIVE = ConcurrentHashMap.newKeySet();
 
     public static void onCellInserted(Location loc) {
@@ -30,30 +43,126 @@ public class GeneratorService {
         ACTIVE.remove(loc);
     }
 
-    // вызывать раз в тик или раз в 20 тиков из BukkitRunnable
+    @EventHandler
+    public void onOpen(InventoryOpenEvent e) {
+        if (!(e.getInventory().getHolder() instanceof GenHolder h)) return;
+        viewers.computeIfAbsent(key(h.getLocation()), k -> ConcurrentHashMap.newKeySet())
+                .add(e.getPlayer().getUniqueId());
+    }
+    //    @EventHandler
+//    public void onClose(InventoryCloseEvent e) {
+//        InventoryHolder h = e.getInventory().getHolder();
+//        if (!(h instanceof GenHolder gen)) return;
+//
+//        Block block = gen.getLocation().getBlock();
+//
+//        // 3) Взяли TileState (подходит только для блоков с block entity)
+//        BlockState state = block.getState();
+//        if (!(state instanceof TileState tile)) return;
+//
+//        // 4) Сохранили items
+//        GenStorage.saveItems(tile, e.getInventory());
+//
+
+    private static String key(Location loc) {
+        return loc.getWorld().getUID() + ":" + loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ();
+    }
+    @EventHandler
+    public void onClose(InventoryCloseEvent e) {
+        if (!(e.getView().getTopInventory().getHolder() instanceof GenHolder h)) return;
+
+        String k = key(h.getLocation());
+        Set<UUID> set = viewers.get(k);
+        if (set != null) {
+            set.remove(e.getPlayer().getUniqueId());
+            if (set.isEmpty()) viewers.remove(k);
+        }
+
+        // на close — сохранить PDC сериализацией (это нормально)
+        BlockState st = h.getLocation().getBlock().getState();
+        if (st instanceof TileState tile) {
+            Inventory top = e.getView().getTopInventory();
+            ItemStack cell = top.getItem(0);
+            Bukkit.getLogger().info("close cellEnergy=" + EnergyCellUtil.getEnergy(cell));
+            GenStorage.saveItems(tile, top); // внутри tile.update() [web:65]
+        }
+    }
+
+    // вызывать раз в тик/20 тиков
     public static void tickAll() {
         ACTIVE.removeIf(loc -> !tickOne(loc));
     }
+    private static Location parseKeyBack(String key) {
+        String[] p = key.split(":");
+        UUID worldId = UUID.fromString(p[0]);
+        int x = Integer.parseInt(p[1]);
+        int y = Integer.parseInt(p[2]);
+        int z = Integer.parseInt(p[3]);
 
-    // true = оставить активным, false = убрать из ACTIVE
+        World w = Bukkit.getWorld(worldId); // getWorld(UUID) [web:245]
+        if (w == null) return null;
+        return new Location(w, x, y, z);
+    }
+    public static void tickOpenGuis() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            Inventory top = p.getOpenInventory().getTopInventory(); // верхний инвентарь окна [web:239]
+            if (!(top.getHolder() instanceof GenHolder h)) continue;
+
+            Location loc = h.getLocation();
+            BlockState st = loc.getBlock().getState();
+            if (!(st instanceof TileState tile)) continue;
+            if (!GeneratorUtil.isGenerator(loc.getBlock())) continue;
+
+            // 1) читаем буфер
+            int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+
+            // 2) зарядка из аккумулятора (слот 0) -> в буфер
+            ItemStack cell = top.getItem(0);
+            if (EnergyCellUtil.isEnergyCell(cell)) {
+                int cellEnergy = EnergyCellUtil.getEnergy(cell);
+                int moved = Math.min(2, cellEnergy);
+                moved = Math.min(moved, GeneratorUtil.capacity - buf);
+
+                if (moved > 0) {
+                    EnergyCellUtil.setEnergy(cell, cellEnergy - moved);
+                    top.setItem(0, cell); // игрок видит сразу
+
+                    tile.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
+                    tile.update(); // применить PDC в мир [web:65]
+
+                    //buf += moved; // чтобы индикатор показывал актуально
+                }
+            }
+
+            // 3) обновляем индикатор (например слот 8)
+            //top.setItem(8, EnergyGuiItem.create(buf));
+        }
+    }
+
+    // true = оставить активным, false = убрать
     private static boolean tickOne(Location loc) {
         World w = loc.getWorld();
         if (w == null) return false;
 
         Block b = w.getBlockAt(loc);
+        if (!GeneratorUtil.isGenerator(b)) return false;
 
+        BlockState st = b.getState();
+        if (!(st instanceof TileState tile)) return false;
 
-        if (!(b.getState() instanceof TileState tile)) return false;
-        if (!GeneratorUtil.isGenerator(b)) return false; // твой PDC machine_type
+        // Временный инвентарь: ОК, но дорого (см. секцию ниже)
+        Inventory inv = org.bukkit.Bukkit.createInventory(null, 27);
+        GenStorage.loadItems(tile, inv);
 
-        Inventory inv = ((Container) tile).getSnapshotInventory();
         ItemStack cell = inv.getItem(0);
         if (!EnergyCellUtil.isEnergyCell(cell)) return false;
 
         int cellEnergy = EnergyCellUtil.getEnergy(cell);
-        if (cellEnergy <= 0) return true; // батарейка стоит, но пустая
+        if (cellEnergy <= 0) return true;
 
-        int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+        PersistentDataContainer pdc = tile.getPersistentDataContainer();
+
+        int buf = pdc.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
         int bufMax = GeneratorUtil.capacity;
         int movePerTick = 2;
 
@@ -61,17 +170,15 @@ public class GeneratorService {
         moved = Math.min(moved, bufMax - buf);
         if (moved <= 0) return true;
 
-        // списали с батарейки
-        int before = EnergyCellUtil.getEnergy(cell);
-        EnergyCellUtil.setEnergy(cell, before - moved);
+        // обновили батарейку в инвентаре
+        EnergyCellUtil.setEnergy(cell, cellEnergy - moved);
         inv.setItem(0, cell);
-       // long after = EnergyCellUtil.getEnergy(inv.getItem(0));
-        //System.out.println("before=" + before + " moved=" + moved + " after=" + after);
 
-        // добавили в трансформатор
-        tile.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
-        tile.update(true); // сохранить TileState/PDC в мир [web:1]
+        // обновили буфер
+        pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
 
+        // сохранили инвентарь + применили PDC
+        GenStorage.saveItems(tile, inv); // внутри должен быть tile.update() [web:33]
         return true;
     }
 

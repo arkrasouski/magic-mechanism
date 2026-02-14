@@ -1,0 +1,21 @@
+<component name="libraryTable">
+  <library name="MorePersistentDataTypes">
+    <ANNOTATIONS>
+      <root url="jar://$USER_HOME$/MorePersistentDataTypes/target/MorePersistentDataTypes.jar!/" />
+    </ANNOTATIONS>
+    <CLASSES>
+      <root url="jar://$USER_HOME$/MorePersistentDataTypes/target/MorePersistentDataTypes.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/MorePersistentDataTypes/target/MorePersistentDataTypes.jar!/" />
+    </JAVADOC>
+    <NATIVE>
+      <root url="jar://$USER_HOME$/MorePersistentDataTypes/target/MorePersistentDataTypes.jar!/" />
+    </NATIVE>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/MorePersistentDataTypes/target/MorePersistentDataTypes.jar!/" />
+    </SOURCES>
+    <jarDirectory url="jar://$USER_HOME$/MorePersistentDataTypes/target/MorePersistentDataTypes.jar!/" recursive="false" />
+    <jarDirectory url="jar://$USER_HOME$/MorePersistentDataTypes/target/MorePersistentDataTypes.jar!/" recursive="false" type="SOURCES" />
+  </library>
+</component>

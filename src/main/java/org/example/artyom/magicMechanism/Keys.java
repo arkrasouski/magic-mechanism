@@ -10,6 +10,7 @@ public final class Keys {
     private Keys() {}
 
     public static NamespacedKey CELL;
+    public static NamespacedKey KEY_ITEMS;
     public static NamespacedKey MACHINE_TYPE, BUFFER, FREQ, CAPACITY;
 
     public static void init(JavaPlugin plugin) {
@@ -20,6 +21,7 @@ public final class Keys {
         FREQ = new NamespacedKey(plugin, "freq_out");
         CAPACITY = new NamespacedKey(plugin, "capacity");
 
+        KEY_ITEMS = new NamespacedKey(plugin, "gen_items");
 
     }
 }
