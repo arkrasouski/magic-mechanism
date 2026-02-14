@@ -30,6 +30,9 @@ public final class MagicMechanism extends JavaPlugin {
                 }
             }
         }.runTaskTimer(this, 1L, 20L); // period == между повторами, delay == стартовая задержка
+
+        Bukkit.getScheduler().runTaskTimer(this, GeneratorService::tickAll, 20L, 20L);
+
     }
 
     @Override

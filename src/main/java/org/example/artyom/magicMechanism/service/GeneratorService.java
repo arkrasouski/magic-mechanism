@@ -48,6 +48,7 @@ public final class GeneratorService implements Listener {
         if (!(e.getInventory().getHolder() instanceof GenHolder h)) return;
         viewers.computeIfAbsent(key(h.getLocation()), k -> ConcurrentHashMap.newKeySet())
                 .add(e.getPlayer().getUniqueId());
+
     }
     //    @EventHandler
 //    public void onClose(InventoryCloseEvent e) {
@@ -105,7 +106,7 @@ public final class GeneratorService implements Listener {
     }
     public static void tickOpenGuis() {
         for (Player p : Bukkit.getOnlinePlayers()) {
-            Inventory top = p.getOpenInventory().getTopInventory(); // верхний инвентарь окна [web:239]
+            Inventory top = p.getOpenInventory().getTopInventory(); // верхний инвентарь [web:239]
             if (!(top.getHolder() instanceof GenHolder h)) continue;
 
             Location loc = h.getLocation();
@@ -113,29 +114,11 @@ public final class GeneratorService implements Listener {
             if (!(st instanceof TileState tile)) continue;
             if (!GeneratorUtil.isGenerator(loc.getBlock())) continue;
 
-            // 1) читаем буфер
-            int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+            // Подтягиваем "истину" из PDC и просто отображаем
+            Inventory tmp = Bukkit.createInventory(null, top.getSize());
+            GenStorage.loadItems(tile, tmp);
 
-            // 2) зарядка из аккумулятора (слот 0) -> в буфер
-            ItemStack cell = top.getItem(0);
-            if (EnergyCellUtil.isEnergyCell(cell)) {
-                int cellEnergy = EnergyCellUtil.getEnergy(cell);
-                int moved = Math.min(2, cellEnergy);
-                moved = Math.min(moved, GeneratorUtil.capacity - buf);
-
-                if (moved > 0) {
-                    EnergyCellUtil.setEnergy(cell, cellEnergy - moved);
-                    top.setItem(0, cell); // игрок видит сразу
-
-                    tile.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
-                    tile.update(); // применить PDC в мир [web:65]
-
-                    //buf += moved; // чтобы индикатор показывал актуально
-                }
-            }
-
-            // 3) обновляем индикатор (например слот 8)
-            //top.setItem(8, EnergyGuiItem.create(buf));
+            top.setItem(0, tmp.getItem(0)); // только UI-обновление
         }
     }
 
@@ -150,8 +133,7 @@ public final class GeneratorService implements Listener {
         BlockState st = b.getState();
         if (!(st instanceof TileState tile)) return false;
 
-        // Временный инвентарь: ОК, но дорого (см. секцию ниже)
-        Inventory inv = org.bukkit.Bukkit.createInventory(null, 27);
+        Inventory inv = Bukkit.createInventory(null, 27);
         GenStorage.loadItems(tile, inv);
 
         ItemStack cell = inv.getItem(0);
@@ -161,24 +143,19 @@ public final class GeneratorService implements Listener {
         if (cellEnergy <= 0) return true;
 
         PersistentDataContainer pdc = tile.getPersistentDataContainer();
-
         int buf = pdc.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
-        int bufMax = GeneratorUtil.capacity;
-        int movePerTick = 2;
 
-        int moved = Math.min(movePerTick, cellEnergy);
-        moved = Math.min(moved, bufMax - buf);
+        int moved = Math.min(2, cellEnergy);
+        moved = Math.min(moved, GeneratorUtil.capacity - buf);
         if (moved <= 0) return true;
 
-        // обновили батарейку в инвентаре
-        EnergyCellUtil.setEnergy(cell, cellEnergy - moved);
+        // Меняем ТОЛЬКО здесь
+        EnergyCellUtil.setEnergy(cell, cellEnergy - moved); // внутри обновится lore
         inv.setItem(0, cell);
 
-        // обновили буфер
         pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
 
-        // сохранили инвентарь + применили PDC
-        GenStorage.saveItems(tile, inv); // внутри должен быть tile.update() [web:33]
+        GenStorage.saveItems(tile, inv); // внутри tile.update() обязательно [web:65]
         return true;
     }
 

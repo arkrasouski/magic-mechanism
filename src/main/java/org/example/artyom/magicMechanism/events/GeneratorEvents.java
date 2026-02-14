@@ -14,10 +14,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -82,38 +79,50 @@ public void onInteract(PlayerInteractEvent e) {
     @EventHandler
     public void onClickEnergySlot(InventoryClickEvent e) {
         Inventory top = e.getView().getTopInventory();
-        InventoryHolder h = top.getHolder();
-        if (!(h instanceof GenHolder holder)) return;
+        if (!(top.getHolder() instanceof GenHolder h)) return;
 
-        // работаем только с кликами по верхнему (нашему) GUI
-        if (e.getClickedInventory() == null || !e.getClickedInventory().equals(top)) return;
-
-        if (e.getSlot() != 0) return; // слот 0 — под аккумулятор
-
-        // ВАЖНО: если ты НЕ отменяешь событие, содержимое слота изменится после обработки,
-        // поэтому проверяем на следующий тик (как ты и делал).
         Bukkit.getScheduler().runTask(MagicMechanism.getInstance(), () -> {
-            ItemStack inSlot = top.getItem(0);
+            ItemStack cell = top.getItem(0);
+            Location loc = h.getLocation();
 
-            Location loc = holder.getLocation();
             BlockState st = loc.getBlock().getState();
             if (!(st instanceof TileState tile)) return;
-
-            String type = this.mechanism.getMechanismType(tile);
-            if (!this.mechanism.getKey_type().equals(type)) return;
-
             Player p = (Player) e.getWhoClicked();
 
-            if (EnergyCellUtil.isEnergyCell(inSlot)) {
+            if (EnergyCellUtil.isEnergyCell(cell)) {
                 p.sendMessage("Аккумулятор вставлен в слот 1!");
-                GeneratorService.onCellInserted(loc);
+                GeneratorService.onCellInserted(h.getLocation());
             } else {
-                GeneratorService.onCellRemoved(loc);
+                GeneratorService.onCellRemoved(h.getLocation());
             }
-
-            // если ты сохраняешь GUI в PDC — тут можно дернуть saveItems(tile, top)
-            // и не забыть tile.update() внутри saveItems [web:69]
+            // КЛЮЧЕВОЕ: синхронизируем PDC сразу
+            GenStorage.saveItems(tile, top);
         });
     }
+    @EventHandler
+    public void onGuiDrag(InventoryDragEvent e) {
+        Inventory top = e.getView().getTopInventory();
+        if (!(top.getHolder() instanceof GenHolder h)) return;
 
+        int slot0Raw = 0; // в topInventory raw слоты начинаются с 0
+        if (!e.getRawSlots().contains(slot0Raw)) return;
+
+        Bukkit.getScheduler().runTask(MagicMechanism.getInstance(), () -> {
+            ItemStack cell = top.getItem(0);
+            Location loc = h.getLocation();
+
+            BlockState st = loc.getBlock().getState();
+            if (!(st instanceof TileState tile)) return;
+            Player p = (Player) e.getWhoClicked();
+
+            if (EnergyCellUtil.isEnergyCell(cell)) {
+                p.sendMessage("Аккумулятор вставлен в слот 1!");
+                GeneratorService.onCellInserted(h.getLocation());
+            } else {
+                GeneratorService.onCellRemoved(h.getLocation());
+            }
+            // КЛЮЧЕВОЕ: синхронизируем PDC сразу
+            GenStorage.saveItems(tile, top);
+        });
+    }
 }
