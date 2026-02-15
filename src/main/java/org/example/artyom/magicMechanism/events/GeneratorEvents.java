@@ -17,23 +17,23 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
-import org.example.artyom.magicMechanism.Keys;
+import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.inventories.FillGenInventory;
 import org.example.artyom.magicMechanism.inventories.GenHolder;
 import org.example.artyom.magicMechanism.inventories.GenStorage;
-import org.example.artyom.magicMechanism.service.GeneratorService;
-import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
-import org.example.artyom.magicMechanism.utils.GeneratorUtil;
+import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
+import org.example.artyom.magicMechanism.energyitems.EnergyCell;
+import org.example.artyom.magicMechanism.mechanisms.Generator;
 
 public class GeneratorEvents extends BaseMechanismEvents {
 
  private GeneratorGuiManager guiManager;
- private GeneratorService genService;
+ private GeneratorCellService genService;
 
-public GeneratorEvents(GeneratorGuiManager guiManager, GeneratorService genService) {
-    super(new GeneratorUtil());
+public GeneratorEvents(GeneratorGuiManager guiManager, GeneratorCellService genService) {
+    super(new Generator());
 
     this.guiManager = guiManager;
     this.genService = genService;
@@ -63,7 +63,7 @@ public void onInteract(PlayerInteractEvent e) {
     if (b == null) return;
 
     // генератор — это, например, DROPPER
-    if (!GeneratorUtil.isGenerator(b)) return;
+    if (!Generator.isGenerator(b)) return;
 
     TileState tile = (TileState) b.getState();
 
@@ -107,11 +107,11 @@ public void onInteract(PlayerInteractEvent e) {
             if (!(st instanceof TileState tile)) return;
             Player p = (Player) e.getWhoClicked();
 
-            if (EnergyCellUtil.isEnergyCell(cell)) {
+            if (EnergyCell.isEnergyCell(cell)) {
                 p.sendMessage("Аккумулятор вставлен в слот 1!");
-                GeneratorService.onCellInserted(h.getLocation());
+                GeneratorCellService.onCellInserted(h.getLocation());
             } else {
-                GeneratorService.onCellRemoved(h.getLocation());
+                GeneratorCellService.onCellRemoved(h.getLocation());
             }
             // КЛЮЧЕВОЕ: синхронизируем PDC сразу чтобы фоновые тики увидели аккумулятор
             GenStorage.saveItems(tile, top);
@@ -174,11 +174,11 @@ public void onInteract(PlayerInteractEvent e) {
             if (st instanceof TileState tile) {
                 ItemStack cell = topNow.getItem(9);
 
-                if (EnergyCellUtil.isEnergyCell(cell)) {
+                if (EnergyCell.isEnergyCell(cell)) {
                     p.sendMessage("Аккумулятор вставлен в слот 1!");
-                    GeneratorService.onCellInserted(loc);
+                    GeneratorCellService.onCellInserted(loc);
                 } else {
-                    GeneratorService.onCellRemoved(loc);
+                    GeneratorCellService.onCellRemoved(loc);
                 }
 
                 GenStorage.saveItems(tile, topNow);
@@ -207,7 +207,7 @@ public void onInteract(PlayerInteractEvent e) {
     public void onPlace(BlockPlaceEvent e) {
         super.onPlace(e);
         Block block = e.getBlockPlaced();
-        if(GeneratorUtil.isGenerator(block)) {
+        if(Generator.isGenerator(block)) {
             this.genService.registerGenerator(block);
         }
     }

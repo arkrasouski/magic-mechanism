@@ -1,7 +1,6 @@
-package org.example.artyom.magicMechanism.utils;
+package org.example.artyom.magicMechanism.mechanisms;
 
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
@@ -9,11 +8,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.example.artyom.magicMechanism.Keys;
+import org.example.artyom.magicMechanism.data.Keys;
 
 import java.util.Arrays;
 
-public abstract class BaseMechanismUtil {
+public abstract class BaseMechanism {
 
     private Material material;
 
@@ -50,7 +49,7 @@ public abstract class BaseMechanismUtil {
     private int capacity;
     private int frequency;
     private int freqSpeed;
-    public BaseMechanismUtil(Material material, String name,
+    public BaseMechanism(Material material, String name,
                              //NamespacedKey key,
                              String key_type, String lore,
                              int capacity, int frequency, int freqSpeed) {

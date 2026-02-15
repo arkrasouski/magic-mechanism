@@ -1,10 +1,7 @@
-package org.example.artyom.magicMechanism;
+package org.example.artyom.magicMechanism.data;
 
 import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.checkerframework.checker.units.qual.N;
-
-import javax.naming.Name;
 
 public final class Keys {
     private Keys() {}

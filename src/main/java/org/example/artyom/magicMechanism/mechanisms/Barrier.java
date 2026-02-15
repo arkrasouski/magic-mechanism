@@ -1,4 +1,4 @@
-package org.example.artyom.magicMechanism.utils;
+package org.example.artyom.magicMechanism.mechanisms;
 
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -6,7 +6,7 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.example.artyom.magicMechanism.Keys;
+import org.example.artyom.magicMechanism.data.Keys;
 
 //
 //import org.bukkit.Location;
@@ -19,11 +19,11 @@ import org.example.artyom.magicMechanism.Keys;
 //import org.bukkit.inventory.meta.ItemMeta;
 //import org.bukkit.persistence.PersistentDataContainer;
 //import org.bukkit.persistence.PersistentDataType;
-//import org.example.artyom.magicMechanism.Keys;
+//import org.example.artyom.magicMechanism.data.Keys;
 //
 //import java.util.Arrays;
 //
-//public class BarrierUtil {
+//public class Barrier {
 //    static boolean inSquare(Location center, Location loc, int radius) { // 5x5 => r=2 | 15x15 => r=7
 //        if (!center.getWorld().equals(loc.getWorld())) return false;
 //        int cx = center.getBlockX(), cz = center.getBlockZ();
@@ -98,11 +98,11 @@ import org.example.artyom.magicMechanism.Keys;
 //        return "energy_barrier".equals(type);
 //    }
 //}
-public class BarrierUtil extends BaseMechanismUtil{
+public class Barrier extends BaseMechanism {
     private static final Material material = Material.BARREL;
     private static final String key_type = "barrier";
     public static final int capacity = 750;
-public BarrierUtil() {
+public Barrier() {
     super(material, "Энерго-барьер", key_type, "Ваш барьер", capacity, 10, 60*60*20);
 }
 

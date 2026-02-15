@@ -1,6 +1,7 @@
 package org.example.artyom.magicMechanism.data;
 
 import org.bukkit.Location;
+import org.example.artyom.magicMechanism.data.records.BlockPosKey;
 
 import java.util.Map;
 import java.util.Set;

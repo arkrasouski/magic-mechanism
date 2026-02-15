@@ -8,7 +8,7 @@ import org.example.artyom.magicMechanism.utils.ItemStackArrayCodec;
 
 import java.io.IOException;
 
-import static org.example.artyom.magicMechanism.Keys.KEY_ITEMS;
+import static org.example.artyom.magicMechanism.data.Keys.KEY_ITEMS;
 
 public final class GenStorage {
 

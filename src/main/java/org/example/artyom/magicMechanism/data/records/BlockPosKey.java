@@ -1,4 +1,4 @@
-package org.example.artyom.magicMechanism.data;
+package org.example.artyom.magicMechanism.data.records;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;

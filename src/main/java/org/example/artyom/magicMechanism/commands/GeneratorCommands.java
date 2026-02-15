@@ -1,16 +1,13 @@
 package org.example.artyom.magicMechanism.commands;
 
-import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.example.artyom.magicMechanism.utils.BarrierUtil;
-import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
-import org.example.artyom.magicMechanism.utils.GeneratorUtil;
-import org.example.artyom.magicMechanism.utils.ItemUtil;
+import org.example.artyom.magicMechanism.mechanisms.Barrier;
+import org.example.artyom.magicMechanism.energyitems.EnergyCell;
+import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.jetbrains.annotations.NotNull;
 
 public class GeneratorCommands implements CommandExecutor {
@@ -19,7 +16,7 @@ public class GeneratorCommands implements CommandExecutor {
         if(command.getName().equalsIgnoreCase("getgen")){
             if(commandSender instanceof Player p){
                 p.sendMessage("Выдан генератор");
-                GeneratorUtil generator = new GeneratorUtil();
+                Generator generator = new Generator();
                 ItemStack item = generator.createMechanismItem();
 
 
@@ -31,7 +28,7 @@ public class GeneratorCommands implements CommandExecutor {
         if (command.getName().equalsIgnoreCase("givecell")) {
 
             if(commandSender instanceof Player p){
-                EnergyCellUtil energyCell = new EnergyCellUtil();
+                EnergyCell energyCell = new EnergyCell();
                 p.getInventory().setItemInMainHand(energyCell.makeEnergyItem(150));
                 return true;
             }
@@ -41,7 +38,7 @@ public class GeneratorCommands implements CommandExecutor {
             System.out.println("kej");
             if(commandSender instanceof Player p){
                 System.out.println("krk lol");
-                BarrierUtil barrier = new BarrierUtil();
+                Barrier barrier = new Barrier();
                 System.out.println("lol");
                 ItemStack item = barrier.createMechanismItem();
                 p.getInventory().setItemInMainHand(item);

@@ -1,11 +1,11 @@
-package org.example.artyom.magicMechanism.utils;
+package org.example.artyom.magicMechanism.energyitems;
 
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.example.artyom.magicMechanism.Keys;
+import org.example.artyom.magicMechanism.data.Keys;
 
 import java.util.Arrays;
 

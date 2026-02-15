@@ -1,25 +1,20 @@
-package org.example.artyom.magicMechanism.utils;
+package org.example.artyom.magicMechanism.energyitems;
 
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.example.artyom.magicMechanism.Keys;
-import org.example.artyom.magicMechanism.MagicMechanism;
+import org.example.artyom.magicMechanism.data.Keys;
 
-import java.util.Arrays;
+public class EnergyCell extends BaseEnergyItem {
 
-public class EnergyCellUtil extends BaseEnergyItem {
-
-//    public EnergyCellUtil(Material material, String key_type, int capacity, int frequency, String name, String lore) {
+//    public EnergyCell(Material material, String key_type, int capacity, int frequency, String name, String lore) {
 //        super(material, key_type, capacity, frequency, name, lore);
 //    }
     private static final String key_type = "energy_cell";
     private static final Material material = Material.NETHER_STAR;
-    public EnergyCellUtil() {
+    public EnergyCell() {
         super(material, key_type, 300, 2, "Энерго-блок", "");
     }
 

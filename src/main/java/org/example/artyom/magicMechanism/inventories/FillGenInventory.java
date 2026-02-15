@@ -14,38 +14,9 @@ public class FillGenInventory {
     public static Inventory  openMenu(Player p, GenHolder holder, double percent) {
         Inventory inv = Bukkit.createInventory(holder, 27, "&f:offset_-64::transformer_menu::offset_64:");
         updateEnergyBar(inv, percent);
-
-        // 19-27 кастомные (если ты имеешь в виду "нижний ряд" в GUI 27 слотов,
-        // то это будет 18-26; но ты написал 19-27 — заполним именно их индексы)
-//        List<String> iaIds = List.of(
-//                "mehanisms:transformer_energy_left",
-//                "mehanisms:transformer_energy_middle",
-//                "mehanisms:transformer_energy_middle",
-//                "mehanisms:transformer_energy_middle",
-//                "mehanisms:transformer_energy_middle",
-//                "mehanisms:transformer_energy_middle",
-//                "mehanisms:transformer_energy_middle",
-//                "mehanisms:transformer_energy_middle",
-//                "mehanisms:transformer_energy_right"
-//        );
-//
-//        int start = 18, end = 26;
-//        for (int slot = start; slot <= end; slot++) {
-//            String id = iaIds.get((slot - start) % iaIds.size());
-//            setIA(inv, slot, id, 1);
-//        }
-
-        //p.openInventory(inv);
         return inv;
     }
 
-    private static void setIA(Inventory inv, int slot, String namespacedId, int amount) {
-        CustomStack cs = CustomStack.getInstance(namespacedId);
-        if (cs == null) return; // id неверный или предмет не загружен
-        ItemStack it = cs.getItemStack();
-        it.setAmount(amount);
-        inv.setItem(slot, it);
-    }
 
     public static void updateEnergyBar(Inventory top, double percent) {
         int start = 18, end = 26;
@@ -73,11 +44,6 @@ public class FillGenInventory {
 
             top.setItem(slot, cs.getItemStack());
         }
-    }
-
-    private ItemStack iaItem(String namespacedId) {
-        CustomStack cs = CustomStack.getInstance(namespacedId);
-        return cs != null ? cs.getItemStack() : null;
     }
 
     private static double clamp(double v, double min, double max) {

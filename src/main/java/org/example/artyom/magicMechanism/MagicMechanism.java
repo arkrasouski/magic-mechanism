@@ -4,21 +4,19 @@ import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
-import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.example.artyom.magicMechanism.commands.GeneratorCommands;
-import org.example.artyom.magicMechanism.data.BlockPosKey;
+import org.example.artyom.magicMechanism.data.records.BlockPosKey;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
+import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.events.BarrierEvents;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
-import org.example.artyom.magicMechanism.inventories.GenStorage;
-import org.example.artyom.magicMechanism.service.GeneratorService;
-import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
-import org.example.artyom.magicMechanism.utils.GeneratorUtil;
+import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
+import org.example.artyom.magicMechanism.mechanisms.Generator;
 
 import java.util.Collection;
 import java.util.Map;
@@ -35,7 +33,7 @@ public final class MagicMechanism extends JavaPlugin {
         instance = this;
         Keys.init(this);
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
-        GeneratorService genService = new GeneratorService(guiManager);
+        GeneratorCellService genService = new GeneratorCellService(guiManager);
 
         getCommand("getgen").setExecutor(new GeneratorCommands());
         getCommand("givecell").setExecutor(new GeneratorCommands());
@@ -70,18 +68,18 @@ public final class MagicMechanism extends JavaPlugin {
         new BukkitRunnable() {
             @Override public void run() {
 
-                Collection<Map.Entry<BlockPosKey, GeneratorUtil>> generators = genService.allGenerators();
+                Collection<Map.Entry<BlockPosKey, Generator>> generators = genService.allGenerators();
 
-                for (Map.Entry<BlockPosKey, GeneratorUtil> entry : generators) { // [web:72]
+                for (Map.Entry<BlockPosKey, Generator> entry : generators) { // [web:72]
                     BlockPosKey key = entry.getKey();            // [web:72]
-                    GeneratorUtil gen = entry.getValue();        // [web:72]
+                    Generator gen = entry.getValue();        // [web:72]
 
                     Block genBlock = BlockPosKey.blockFromKey(key); // или восстанови Block из key (world+x+y+z)
                     BlockState bs = genBlock.getState();
                     if(!(bs instanceof TileState tileGen)) return;
                     int genEnergy = gen.getCurrentEnergy(tileGen);
 
-                    for (Block barrier : GeneratorUtil.adjacentMechanisms(genBlock)) {
+                    for (Block barrier : Generator.adjacentMechanisms(genBlock)) {
 
 //
                         if (genEnergy <= 0) break;
@@ -93,13 +91,13 @@ public final class MagicMechanism extends JavaPlugin {
                         int buf = pdc.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
 
                         int moved = Math.min(gen.getFrequency(), genEnergy);
-                        moved = Math.min(moved, GeneratorUtil.capacity - buf);
+                        moved = Math.min(moved, Generator.capacity - buf);
                         if (moved <= 0) continue;
 
                         // Меняем ТОЛЬКО здесь
                         genEnergy -= moved;
                         gen.setCurrentEnergy(tileGen, genEnergy);
-                        //EnergyCellUtil.setEnergy(cell, cellEnergy - moved); // внутри обновится lore
+                        //EnergyCell.setEnergy(cell, cellEnergy - moved); // внутри обновится lore
 
                         pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
 

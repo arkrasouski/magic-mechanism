@@ -1,4 +1,4 @@
-package org.example.artyom.magicMechanism.utils;
+package org.example.artyom.magicMechanism.mechanisms;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -6,19 +6,19 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.example.artyom.magicMechanism.Keys;
+import org.example.artyom.magicMechanism.data.Keys;
 
 import java.util.ArrayList;
 import java.util.List;
 
 
-public class GeneratorUtil extends BaseMechanismUtil {
+public class Generator extends BaseMechanism {
 
     private static final Material material = Material.DROPPER;
     private static final String key_type = "generator";
     public static final int capacity = 1000;
 
-    public GeneratorUtil() {
+    public Generator() {
         super(material, "Энерго-генератор", key_type, "Ваш генератор", capacity, 10, 20);
     }
 
@@ -50,7 +50,7 @@ public class GeneratorUtil extends BaseMechanismUtil {
         List<Block> res = new ArrayList<>();
         for (BlockFace f : FACES_6) {
             Block b = generator.getRelative(f);
-            if (BarrierUtil.isBarrier(b)) res.add(b);
+            if (Barrier.isBarrier(b)) res.add(b);
         }
         return res;
     }
