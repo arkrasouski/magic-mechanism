@@ -10,6 +10,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
@@ -28,10 +30,13 @@ import org.example.artyom.magicMechanism.utils.GeneratorUtil;
 public class GeneratorEvents extends BaseMechanismEvents {
 
  private GeneratorGuiManager guiManager;
+ private GeneratorService genService;
 
-public GeneratorEvents(GeneratorGuiManager guiManager) {
+public GeneratorEvents(GeneratorGuiManager guiManager, GeneratorService genService) {
     super(new GeneratorUtil());
+
     this.guiManager = guiManager;
+    this.genService = genService;
 }
 
 @EventHandler
@@ -112,41 +117,7 @@ public void onInteract(PlayerInteractEvent e) {
             GenStorage.saveItems(tile, top);
         });
     }
-//    @EventHandler
-//    public void onDragEnergySlot(InventoryDragEvent e) {
-//        Inventory top = e.getView().getTopInventory();
-//        if (!(top.getHolder() instanceof GenHolder h)) return;
-//
-////        for (int rawSlot : e.getRawSlots()) {
-////            if (!isBlocked(rawSlot)) {
-////                int slot = rawSlot; // это слот верхнего инвентаря
-////                if () {
-////                    e.setCancelled(true);
-////                    return;
-////                }
-////            }
-////        }
-//        int slot0Raw = 0; // в topInventory raw слоты начинаются с 0
-//        if (!e.getRawSlots().contains(slot0Raw)) return;
-//
-//        Bukkit.getScheduler().runTask(MagicMechanism.getInstance(), () -> {
-//            ItemStack cell = top.getItem(0);
-//            Location loc = h.getLocation();
-//
-//            BlockState st = loc.getBlock().getState();
-//            if (!(st instanceof TileState tile)) return;
-//            Player p = (Player) e.getWhoClicked();
-//
-//            if (EnergyCellUtil.isEnergyCell(cell)) {
-//                p.sendMessage("Аккумулятор вставлен в слот 1!");
-//                GeneratorService.onCellInserted(h.getLocation());
-//            } else {
-//                GeneratorService.onCellRemoved(h.getLocation());
-//            }
-//            // КЛЮЧЕВОЕ: синхронизируем PDC сразу
-//            GenStorage.saveItems(tile, top);
-//        });
-//    }
+
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShiftToGenerator(InventoryClickEvent e) {
@@ -229,5 +200,23 @@ public void onInteract(PlayerInteractEvent e) {
 
         // или, например, только 10-11 и 19-27
         return slot != 10 && slot != 9;
+    }
+
+    @Override
+    @EventHandler
+    public void onPlace(BlockPlaceEvent e) {
+        super.onPlace(e);
+        Block block = e.getBlockPlaced();
+        if(GeneratorUtil.isGenerator(block)) {
+            this.genService.registerGenerator(block);
+        }
+    }
+
+    @Override
+    @EventHandler
+    public void onBreak(BlockBreakEvent e) {
+        super.onBreak(e);
+        Block block = e.getBlock();
+        this.genService.unregisterGenerator(block);
     }
 }

@@ -20,6 +20,9 @@ import org.example.artyom.magicMechanism.inventories.GenStorage;
 import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
 import org.example.artyom.magicMechanism.utils.GeneratorUtil;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,8 +31,22 @@ public final class GeneratorService {
     public GeneratorService(GeneratorGuiManager guiManager) {
         this.guiManager = guiManager;
     }
+    private final Map<BlockPosKey, GeneratorUtil> generators = new HashMap<>();
 
     private static final Set<Location> ACTIVE = ConcurrentHashMap.newKeySet();
+
+
+    public void registerGenerator(Block b) {
+        generators.put(BlockPosKey.of(b.getLocation()), new GeneratorUtil());
+    }
+
+    public void unregisterGenerator(Block b) {
+        generators.remove(BlockPosKey.of(b.getLocation()));
+    }
+
+    public Collection<Map.Entry<BlockPosKey, GeneratorUtil>> allGenerators() {
+        return generators.entrySet();
+    }
 
     public static void onCellInserted(Location loc) {
         ACTIVE.add(loc);

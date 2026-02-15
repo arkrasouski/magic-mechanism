@@ -1,11 +1,15 @@
 package org.example.artyom.magicMechanism.utils;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.Keys;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class GeneratorUtil extends BaseMechanismUtil {
@@ -15,8 +19,13 @@ public class GeneratorUtil extends BaseMechanismUtil {
     public static final int capacity = 1000;
 
     public GeneratorUtil() {
-        super(material, "Энерго-генератор", key_type, "Ваш генератор", capacity, 10);
+        super(material, "Энерго-генератор", key_type, "Ваш генератор", capacity, 10, 20);
     }
+
+
+    static final BlockFace[] FACES_6 = {
+            BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN
+    };
 
     public static boolean isGenerator(Block block){
         if (block == null) return false;
@@ -35,5 +44,14 @@ public class GeneratorUtil extends BaseMechanismUtil {
         String type = pdc.get(Keys.MACHINE_TYPE , PersistentDataType.STRING);
 
         return key_type.equals(type);
+    }
+
+    public static  List<Block> adjacentMechanisms(Block generator) {
+        List<Block> res = new ArrayList<>();
+        for (BlockFace f : FACES_6) {
+            Block b = generator.getRelative(f);
+            if (BarrierUtil.isBarrier(b)) res.add(b);
+        }
+        return res;
     }
 }

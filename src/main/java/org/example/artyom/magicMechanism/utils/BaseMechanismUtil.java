@@ -49,11 +49,11 @@ public abstract class BaseMechanismUtil {
 
     private int capacity;
     private int frequency;
-
+    private int freqSpeed;
     public BaseMechanismUtil(Material material, String name,
                              //NamespacedKey key,
                              String key_type, String lore,
-                             int capacity, int frequency) {
+                             int capacity, int frequency, int freqSpeed) {
         this.material = material;
         this.name = name;
         //this.key = key;
@@ -61,12 +61,13 @@ public abstract class BaseMechanismUtil {
         this.lore = lore;
         this.capacity = capacity;
         this.frequency = frequency;
+        this.freqSpeed = freqSpeed;
     }
 
     public ItemStack createMechanismItem() {
         ItemStack item = new ItemStack(this.material, 1);
         ItemMeta meta = item.getItemMeta();
-
+        System.out.println("Lol");
         meta.setDisplayName("§b" + this.name);
         meta.getPersistentDataContainer().set(
                 Keys.MACHINE_TYPE,
@@ -76,6 +77,7 @@ public abstract class BaseMechanismUtil {
         //meta.setCustomModelData(1001);
         meta.setLore(Arrays.asList(this.lore));
         item.setItemMeta(meta);
+        System.out.println(this.lore);
         return item;
     }
 
@@ -148,5 +150,13 @@ public abstract class BaseMechanismUtil {
 
     public String getMechanismType(TileState tile) {
         return tile.getPersistentDataContainer().get(Keys.MACHINE_TYPE, PersistentDataType.STRING);
+    }
+
+    public int getCurrentEnergy(TileState tile) {
+        return tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+    }
+
+    public void setCurrentEnergy(TileState tile, int energy) {
+        tile.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.INTEGER, energy);
     }
 }

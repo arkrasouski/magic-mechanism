@@ -1,14 +1,27 @@
 package org.example.artyom.magicMechanism;
 
 import org.bukkit.Bukkit;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.TileState;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.example.artyom.magicMechanism.commands.GeneratorCommands;
+import org.example.artyom.magicMechanism.data.BlockPosKey;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.events.BarrierEvents;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
+import org.example.artyom.magicMechanism.inventories.GenStorage;
 import org.example.artyom.magicMechanism.service.GeneratorService;
+import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
+import org.example.artyom.magicMechanism.utils.GeneratorUtil;
+
+import java.util.Collection;
+import java.util.Map;
 
 public final class MagicMechanism extends JavaPlugin {
 
@@ -22,11 +35,15 @@ public final class MagicMechanism extends JavaPlugin {
         instance = this;
         Keys.init(this);
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
+        GeneratorService genService = new GeneratorService(guiManager);
+
         getCommand("getgen").setExecutor(new GeneratorCommands());
         getCommand("givecell").setExecutor(new GeneratorCommands());
-        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(guiManager), this);
+        getCommand("getbarrier").setExecutor(new GeneratorCommands());
+
+        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(guiManager, genService), this);
         Bukkit.getPluginManager().registerEvents(new BarrierEvents(), this);
-        GeneratorService genService = new GeneratorService(guiManager);
+
         this.tickAllTask = Bukkit.getScheduler().runTaskTimer(
                 this,
                 () -> {
@@ -49,6 +66,52 @@ public final class MagicMechanism extends JavaPlugin {
                 20L,
                 20L // например, раз в 5 тиков; можешь 20L если достаточно раз в сек
         );
+
+        new BukkitRunnable() {
+            @Override public void run() {
+
+                Collection<Map.Entry<BlockPosKey, GeneratorUtil>> generators = genService.allGenerators();
+
+                for (Map.Entry<BlockPosKey, GeneratorUtil> entry : generators) { // [web:72]
+                    BlockPosKey key = entry.getKey();            // [web:72]
+                    GeneratorUtil gen = entry.getValue();        // [web:72]
+
+                    Block genBlock = BlockPosKey.blockFromKey(key); // или восстанови Block из key (world+x+y+z)
+                    BlockState bs = genBlock.getState();
+                    if(!(bs instanceof TileState tileGen)) return;
+                    int genEnergy = gen.getCurrentEnergy(tileGen);
+
+                    for (Block barrier : GeneratorUtil.adjacentMechanisms(genBlock)) {
+
+//
+                        if (genEnergy <= 0) break;
+
+                        BlockState barrierState = barrier.getState();
+                        if(!(barrierState instanceof TileState tile)) continue;
+
+                        PersistentDataContainer pdc =  tile.getPersistentDataContainer();
+                        int buf = pdc.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+
+                        int moved = Math.min(gen.getFrequency(), genEnergy);
+                        moved = Math.min(moved, GeneratorUtil.capacity - buf);
+                        if (moved <= 0) continue;
+
+                        // Меняем ТОЛЬКО здесь
+                        genEnergy -= moved;
+                        gen.setCurrentEnergy(tileGen, genEnergy);
+                        //EnergyCellUtil.setEnergy(cell, cellEnergy - moved); // внутри обновится lore
+
+                        pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
+
+                        tile.update();
+
+                        //GenStorage.saveItems(tile, inv);
+                    }
+                    tileGen.update();
+
+                }}
+        }.runTaskTimer(this, 1L, 20L);
+
     }
 
     @Override

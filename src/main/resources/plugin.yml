@@ -8,4 +8,6 @@ commands:
     description: Выдает кастомный генератор
   givecell:
     description: Выдает аккумулятор
+  getbarrier:
+    description: Выдает барьер
 depend: [ItemsAdder]

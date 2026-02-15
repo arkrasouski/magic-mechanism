@@ -7,6 +7,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.example.artyom.magicMechanism.utils.BarrierUtil;
 import org.example.artyom.magicMechanism.utils.EnergyCellUtil;
 import org.example.artyom.magicMechanism.utils.GeneratorUtil;
 import org.example.artyom.magicMechanism.utils.ItemUtil;
@@ -32,6 +33,18 @@ public class GeneratorCommands implements CommandExecutor {
             if(commandSender instanceof Player p){
                 EnergyCellUtil energyCell = new EnergyCellUtil();
                 p.getInventory().setItemInMainHand(energyCell.makeEnergyItem(150));
+                return true;
+            }
+        }
+
+        if (command.getName().equalsIgnoreCase("getbarrier")) {
+            System.out.println("kej");
+            if(commandSender instanceof Player p){
+                System.out.println("krk lol");
+                BarrierUtil barrier = new BarrierUtil();
+                System.out.println("lol");
+                ItemStack item = barrier.createMechanismItem();
+                p.getInventory().setItemInMainHand(item);
                 return true;
             }
         }
