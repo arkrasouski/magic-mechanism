@@ -16,6 +16,7 @@ import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.events.BarrierEvents;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
 import org.example.artyom.magicMechanism.inventories.FillGenInventory;
+import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 
@@ -26,6 +27,7 @@ public final class MagicMechanism extends JavaPlugin {
 
     private BukkitTask tickAllTask;
     private BukkitTask tickGuiTask;
+    private BukkitTask tickBarrierTask;
     private static MagicMechanism instance;
 
     @Override
@@ -36,7 +38,7 @@ public final class MagicMechanism extends JavaPlugin {
         FillGenInventory baseGenInventory = new FillGenInventory();
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         GeneratorCellService genService = new GeneratorCellService(guiManager, baseGenInventory);
-
+        GeneratorBarrierService genBarrierService = new GeneratorBarrierService(genService.allGenerators());
 
 
 
@@ -53,9 +55,7 @@ public final class MagicMechanism extends JavaPlugin {
                     if (guiManager.hasViewers()) {   // лучше чем hasActive()
                         genService.tickOpenGuis();
                     }
-                },
-                1L,
-                5L
+                }, 1L, 5L
         );
 
         // 2) Обновление GUI: чаще, но только если нужно
@@ -65,55 +65,12 @@ public final class MagicMechanism extends JavaPlugin {
                     if (genService.hasActive()) {   // лучше чем hasActive()
                         genService.tickAll();
                     }
-                },
-                20L,
-                20L // например, раз в 5 тиков; можешь 20L если достаточно раз в сек
+                }, 20L, 20L // например, раз в 5 тиков; можешь 20L если достаточно раз в сек
         );
-
-        new BukkitRunnable() {
-            @Override public void run() {
-
-                Collection<Map.Entry<BlockPosKey, Generator>> generators = genService.allGenerators();
-
-                for (Map.Entry<BlockPosKey, Generator> entry : generators) { // [web:72]
-                    BlockPosKey key = entry.getKey();            // [web:72]
-                    Generator gen = entry.getValue();        // [web:72]
-
-                    Block genBlock = BlockPosKey.blockFromKey(key); // или восстанови Block из key (world+x+y+z)
-                    BlockState bs = genBlock.getState();
-                    if(!(bs instanceof TileState tileGen)) return;
-                    int genEnergy = gen.getCurrentEnergy(tileGen);
-
-                    for (Block barrier : Generator.adjacentMechanisms(genBlock)) {
-
-//
-                        if (genEnergy <= 0) break;
-
-                        BlockState barrierState = barrier.getState();
-                        if(!(barrierState instanceof TileState tile)) continue;
-
-                        PersistentDataContainer pdc =  tile.getPersistentDataContainer();
-                        int buf = pdc.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
-
-                        int moved = Math.min(gen.getFrequency(), genEnergy);
-                        moved = Math.min(moved, Generator.capacity - buf);
-                        if (moved <= 0) continue;
-
-                        // Меняем ТОЛЬКО здесь
-                        genEnergy -= moved;
-                        gen.setCurrentEnergy(tileGen, genEnergy);
-                        //EnergyCell.setEnergy(cell, cellEnergy - moved); // внутри обновится lore
-
-                        pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
-
-                        tile.update();
-
-                        //GenStorage.saveItems(tile, inv);
-                    }
-                    tileGen.update();
-
-                }}
-        }.runTaskTimer(this, 1L, 20L);
+        this.tickBarrierTask = Bukkit.getScheduler().runTaskTimer(
+                this,
+                genBarrierService::tickEnergybarrierGenerator, 1L, 20L
+        );
 
     }
 
@@ -121,6 +78,7 @@ public final class MagicMechanism extends JavaPlugin {
     public void onDisable() {
         if (tickAllTask != null) tickAllTask.cancel();
         if (tickGuiTask != null) tickGuiTask.cancel();
+        if (tickBarrierTask != null) tickBarrierTask.cancel();
     }
 
     public static MagicMechanism getInstance() {
