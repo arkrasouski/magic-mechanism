@@ -1,16 +1,10 @@
 package org.example.artyom.magicMechanism;
 
 import org.bukkit.Bukkit;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
+
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.example.artyom.magicMechanism.commands.GeneratorCommands;
-import org.example.artyom.magicMechanism.data.records.BlockPosKey;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.events.BarrierEvents;
@@ -18,11 +12,6 @@ import org.example.artyom.magicMechanism.events.GeneratorEvents;
 import org.example.artyom.magicMechanism.inventories.FillGenInventory;
 import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
-import org.example.artyom.magicMechanism.mechanisms.Generator;
-
-import java.util.Collection;
-import java.util.Map;
-
 public final class MagicMechanism extends JavaPlugin {
 
     private BukkitTask tickAllTask;

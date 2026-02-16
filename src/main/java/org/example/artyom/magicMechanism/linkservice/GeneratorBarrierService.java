@@ -19,9 +19,9 @@ public class GeneratorBarrierService {
     }
 
     public void tickEnergybarrierGenerator(){
-        for (Map.Entry<BlockPosKey, Generator> entry : generators) { // [web:72]
-        BlockPosKey key = entry.getKey();            // [web:72]
-        Generator gen = entry.getValue();        // [web:72]
+        for (Map.Entry<BlockPosKey, Generator> entry : generators) {
+        BlockPosKey key = entry.getKey();
+        Generator gen = entry.getValue();
 
         Block genBlock = BlockPosKey.blockFromKey(key); // или восстанови Block из key (world+x+y+z)
         BlockState bs = genBlock.getState();
@@ -31,7 +31,7 @@ public class GeneratorBarrierService {
         for (Block barrier : Generator.adjacentMechanisms(genBlock)) {
 
 //
-            if (genEnergy <= 0) break;
+            if (genEnergy <= gen.getFrequency()) break;
 
             BlockState barrierState = barrier.getState();
             if(!(barrierState instanceof TileState tile)) continue;
@@ -39,7 +39,7 @@ public class GeneratorBarrierService {
             PersistentDataContainer pdc =  tile.getPersistentDataContainer();
             int buf = pdc.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
 
-            int moved = Math.min(gen.getFrequency(), genEnergy);
+            int moved = gen.getFrequency();
             moved = Math.min(moved, Generator.capacity - buf);
             if (moved <= 0) continue;
 
