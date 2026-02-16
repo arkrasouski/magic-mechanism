@@ -28,8 +28,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class GeneratorCellService {
     private final GeneratorGuiManager guiManager;
-    public GeneratorCellService(GeneratorGuiManager guiManager) {
+    private final FillGenInventory genInventory;
+
+    public GeneratorCellService(GeneratorGuiManager guiManager, FillGenInventory genInventory) {
         this.guiManager = guiManager;
+        this.genInventory = genInventory;
     }
     private final Map<BlockPosKey, Generator> generators = new HashMap<>();
 
@@ -92,7 +95,7 @@ public final class GeneratorCellService {
                 PersistentDataContainer genPDC = tile.getPersistentDataContainer();
                 int currentEnergy = genPDC.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
                 int capacity = genPDC.getOrDefault(Keys.CAPACITY, PersistentDataType.INTEGER, 0);
-                FillGenInventory.updateEnergyBar(top, (double) (currentEnergy * 100) / capacity);
+                genInventory.updateEnergyBar(top, (double) (currentEnergy * 100) / capacity);
 
                 // UI-обновление (при желании добавь фильтр, чтобы не перетирать игрока)
                 if(!EnergyCell.isEnergyCell(cellFromPdc)) return false;

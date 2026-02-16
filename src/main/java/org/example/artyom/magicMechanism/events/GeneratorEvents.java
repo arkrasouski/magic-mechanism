@@ -31,12 +31,14 @@ public class GeneratorEvents extends BaseMechanismEvents {
 
  private GeneratorGuiManager guiManager;
  private GeneratorCellService genService;
+ private FillGenInventory genInventory;
 
-public GeneratorEvents(GeneratorGuiManager guiManager, GeneratorCellService genService) {
+public GeneratorEvents(GeneratorGuiManager guiManager, GeneratorCellService genService, FillGenInventory genInventory) {
     super(new Generator());
 
     this.guiManager = guiManager;
     this.genService = genService;
+    this.genInventory = genInventory;
 }
 
 @EventHandler
@@ -77,7 +79,7 @@ public void onInteract(PlayerInteractEvent e) {
     int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, this.mechanism.getFrequency());
     GenHolder holder = new GenHolder(b.getLocation());
     System.out.println((double) (buf * 100) / mechanism.getCapacity());
-    Inventory gui = FillGenInventory.openMenu(e.getPlayer(), holder, (double) (buf * 100) / mechanism.getCapacity());
+    Inventory gui = this.genInventory.openMenu(e.getPlayer(), holder, (double) (buf * 100) / mechanism.getCapacity());
     holder.setInventory(gui);
 
     // если тебе надо переносить реальные предметы из дроппера в GUI — решай сам:

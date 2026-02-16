@@ -15,6 +15,7 @@ import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.events.BarrierEvents;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
+import org.example.artyom.magicMechanism.inventories.FillGenInventory;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 
@@ -32,14 +33,18 @@ public final class MagicMechanism extends JavaPlugin {
         // Plugin startup logic
         instance = this;
         Keys.init(this);
+        FillGenInventory baseGenInventory = new FillGenInventory();
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
-        GeneratorCellService genService = new GeneratorCellService(guiManager);
+        GeneratorCellService genService = new GeneratorCellService(guiManager, baseGenInventory);
+
+
+
 
         getCommand("getgen").setExecutor(new GeneratorCommands());
         getCommand("givecell").setExecutor(new GeneratorCommands());
         getCommand("getbarrier").setExecutor(new GeneratorCommands());
 
-        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(guiManager, genService), this);
+        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(guiManager, genService, baseGenInventory), this);
         Bukkit.getPluginManager().registerEvents(new BarrierEvents(), this);
 
         this.tickAllTask = Bukkit.getScheduler().runTaskTimer(
