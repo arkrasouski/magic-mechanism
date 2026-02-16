@@ -78,7 +78,7 @@ public void onInteract(PlayerInteractEvent e) {
     int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
     int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, this.mechanism.getFrequency());
     GenHolder holder = new GenHolder(b.getLocation());
-    System.out.println((double) (buf * 100) / mechanism.getCapacity());
+
     Inventory gui = this.genInventory.openMenu(e.getPlayer(), holder, (double) (buf * 100) / mechanism.getCapacity());
     holder.setInventory(gui);
 
@@ -97,15 +97,18 @@ public void onInteract(PlayerInteractEvent e) {
         Inventory top = e.getView().getTopInventory();
         if (!(top.getHolder() instanceof GenHolder h)) return;
         int slot = e.getSlot(); // индекс в верхнем инвентаре
+        Location loc = h.getLocation();
+        Block b = loc.getBlock();
+        BlockState st = b.getState();
+        if(!Generator.isGenerator(b)) return;
         if(e.getRawSlot() >= 27) return;
-        if (isBlocked(slot)) {
+
+        if (genInventory.isBlocked(slot)) {
             e.setCancelled(true);
         }
         Bukkit.getScheduler().runTask(MagicMechanism.getInstance(), () -> {
             ItemStack cell = top.getItem(9);
-            Location loc = h.getLocation();
 
-            BlockState st = loc.getBlock().getState();
             if (!(st instanceof TileState tile)) return;
             Player p = (Player) e.getWhoClicked();
 
@@ -128,7 +131,9 @@ public void onInteract(PlayerInteractEvent e) {
 
         // Только shift-перенос
         if (e.getAction() != InventoryAction.MOVE_TO_OTHER_INVENTORY) return;
-
+        Location loc = h.getLocation();
+        Block b = loc.getBlock();
+        if(!Generator.isGenerator(b)) return;
         int topSize = top.getSize();
 
         // Только shift-клик из НИЖНЕГО инвентаря (инвентарь игрока) -> вверх
@@ -157,7 +162,7 @@ public void onInteract(PlayerInteractEvent e) {
             // В некоторых реализациях getItem(rawSlot) может вернуть null, тогда используем старое значение как fallback
             if (movingNow == null || movingNow.getType().isAir()) movingNow = moving.clone();
 
-            int target = findTargetSlot(topNow, movingNow);
+            int target = genInventory.findTargetSlot(topNow);
             if (target == -1) {
                 // нет разрешённых мест — предмет остаётся у игрока
                 return;
@@ -171,7 +176,6 @@ public void onInteract(PlayerInteractEvent e) {
             p.getOpenInventory().setItem(e.getRawSlot(), null);
 
             // Дальше твоя доменная логика
-            Location loc = h.getLocation();
             BlockState st = loc.getBlock().getState();
             if (st instanceof TileState tile) {
                 ItemStack cell = topNow.getItem(9);
@@ -187,22 +191,7 @@ public void onInteract(PlayerInteractEvent e) {
             }
         });
     }
-    private int findTargetSlot(Inventory top, ItemStack moving) {
-        // Пример: разрешены только 19-27 и только если слот пустой
-        for (int slot = 9; slot <= 10; slot++) {
-            //if (isBlocked(slot, moving)) continue;
-            ItemStack cur = top.getItem(slot);
-            if (cur == null || cur.getType().isAir()) return slot;
-        }
-        return -1;
-    }
-    private boolean isBlocked(int slot) {
-        // пример: заблокировать ВСЕ слоты верхнего инвентаря
-        // return true;
 
-        // или, например, только 10-11 и 19-27
-        return slot != 10 && slot != 9;
-    }
 
     @Override
     @EventHandler

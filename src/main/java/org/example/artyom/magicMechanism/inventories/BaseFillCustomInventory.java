@@ -4,11 +4,16 @@ import dev.lone.itemsadder.api.CustomStack;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class BaseFillCustomInventory {
+    public int getSize() {
+        return size;
+    }
+
     private final int size;
     private final String glif;
     private final List<Integer> activeSlots;
@@ -58,4 +63,25 @@ public abstract class BaseFillCustomInventory {
     private static double clamp(double v, double min, double max) {
         return Math.max(min, Math.min(max, v));
     }
+
+    public int findTargetSlot(Inventory top) {
+        // Пример: разрешены только 19-27 и только если слот пустой
+        if(activeSlots ==null) return -1;
+        for (int slot : activeSlots) {
+            ItemStack cur = top.getItem(slot);
+            if (cur == null || cur.getType().isAir()) return slot;
+        }
+        return -1;
+    }
+    public boolean isBlocked(int slot) {
+        // пример: заблокировать ВСЕ слоты верхнего инвентаря
+        // return true;
+        if(activeSlots ==null) return true;
+        for (int i : activeSlots) {
+            if (slot == i) return false;
+        }
+        return true;
+
+    }
+
 }
