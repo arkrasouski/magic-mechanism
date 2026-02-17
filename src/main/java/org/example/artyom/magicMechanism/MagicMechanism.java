@@ -43,7 +43,7 @@ public final class MagicMechanism extends JavaPlugin {
         this.tickAllTask = Bukkit.getScheduler().runTaskTimer(
                 this,
                 () -> {
-                    if (guiManager.hasViewers()) {   // лучше чем hasActive()
+                    if (guiManager.hasViewers()) {
                         genService.tickOpenGuis();
                     }
                 }, 1L, 5L
@@ -53,10 +53,10 @@ public final class MagicMechanism extends JavaPlugin {
         this.tickGuiTask = Bukkit.getScheduler().runTaskTimer(
                 this,
                 () -> {
-                    if (genService.hasActive()) {   // лучше чем hasActive()
+                    if (genService.hasActive()) {
                         genService.tickAll();
                     }
-                }, 20L, 20L // например, раз в 5 тиков; можешь 20L если достаточно раз в сек
+                }, 20L, 20L
         );
         this.tickBarrierTask = Bukkit.getScheduler().runTaskTimer(
                 this,

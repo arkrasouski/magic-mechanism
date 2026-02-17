@@ -13,6 +13,7 @@ public class BarrierInventory extends BaseFillCustomInventory{
     public Inventory openMenu(Player p, MechanismHolder holder, double percent) {
         Inventory inv = super.openMenu(p, holder, percent);
         //inv.setItem();
+
         return inv;
     }
 }
