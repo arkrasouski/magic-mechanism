@@ -6,7 +6,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public abstract class BaseFillCustomInventory {
@@ -25,7 +24,7 @@ public abstract class BaseFillCustomInventory {
     }
 
 
-    public Inventory openMenu(Player p, GenHolder holder, double percent) {
+    public Inventory openMenu(Player p, MechanismHolder holder, double percent) {
         Inventory inv = Bukkit.createInventory(holder, this.size, this.glif);
         updateEnergyBar(inv, percent);
         return inv;
@@ -65,7 +64,7 @@ public abstract class BaseFillCustomInventory {
     }
 
     public int findTargetSlot(Inventory top) {
-        // Пример: разрешены только 19-27 и только если слот пустой
+
         if(activeSlots ==null) return -1;
         for (int slot : activeSlots) {
             ItemStack cur = top.getItem(slot);

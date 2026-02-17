@@ -20,20 +20,17 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.Keys;
-import org.example.artyom.magicMechanism.energyitems.EnergyCell;
-import org.example.artyom.magicMechanism.inventories.FillBarrierInventory;
-import org.example.artyom.magicMechanism.inventories.GenHolder;
-import org.example.artyom.magicMechanism.inventories.GenStorage;
-import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
+import org.example.artyom.magicMechanism.data.enums.MechanismType;
+import org.example.artyom.magicMechanism.inventories.BarrierInventory;
+import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
-import org.example.artyom.magicMechanism.mechanisms.Generator;
 
 
 public class BarrierEvents extends BaseMechanismEvents {
 
-    FillBarrierInventory barrierInventory;
+    BarrierInventory barrierInventory;
 
-    public BarrierEvents(FillBarrierInventory barrierInventory) {
+    public BarrierEvents(BarrierInventory barrierInventory) {
         super(new Barrier());
         this.barrierInventory = barrierInventory;
     }
@@ -48,7 +45,7 @@ public class BarrierEvents extends BaseMechanismEvents {
             TileState tile = (TileState) clicked.getState();
             int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
             //int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, this.mechanism.getFrequency());
-            GenHolder holder = new GenHolder(clicked.getLocation());
+            MechanismHolder holder = new MechanismHolder(clicked.getLocation(), MechanismType.BARRIER);
             Inventory gui = this.barrierInventory.openMenu(e.getPlayer(), holder, (double) (buf * 100) / mechanism.getCapacity());
             holder.setInventory(gui);
 
@@ -63,7 +60,7 @@ public class BarrierEvents extends BaseMechanismEvents {
     @EventHandler
     public void onClickEnergySlot(InventoryClickEvent e) {
         Inventory top = e.getView().getTopInventory();
-        if (!(top.getHolder() instanceof GenHolder h)) return;
+        if (!(top.getHolder() instanceof MechanismHolder h)) return;
         int slot = e.getSlot(); // индекс в верхнем инвентаре
         Location loc = h.getLocation();
         Block b = loc.getBlock();
@@ -81,7 +78,7 @@ public class BarrierEvents extends BaseMechanismEvents {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShiftToGenerator(InventoryClickEvent e) {
         Inventory top = e.getView().getTopInventory();
-        if (!(top.getHolder() instanceof GenHolder h)) return;
+        if (!(top.getHolder() instanceof MechanismHolder h)) return;
 
         // Только shift-перенос
         if (e.getAction() != InventoryAction.MOVE_TO_OTHER_INVENTORY) return;

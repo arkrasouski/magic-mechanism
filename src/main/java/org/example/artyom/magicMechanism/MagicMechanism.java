@@ -9,8 +9,8 @@ import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.events.BarrierEvents;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
-import org.example.artyom.magicMechanism.inventories.FillBarrierInventory;
-import org.example.artyom.magicMechanism.inventories.FillGenInventory;
+import org.example.artyom.magicMechanism.inventories.BarrierInventory;
+import org.example.artyom.magicMechanism.inventories.GenInventory;
 import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 public final class MagicMechanism extends JavaPlugin {
@@ -25,8 +25,8 @@ public final class MagicMechanism extends JavaPlugin {
         // Plugin startup logic
         instance = this;
         Keys.init(this);
-        FillGenInventory baseGenInventory = new FillGenInventory();
-        FillBarrierInventory barrierInventory = new FillBarrierInventory();
+        GenInventory baseGenInventory = new GenInventory();
+        BarrierInventory barrierInventory = new BarrierInventory();
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         GeneratorCellService genService = new GeneratorCellService(guiManager, baseGenInventory);
         GeneratorBarrierService genBarrierService = new GeneratorBarrierService(genService.allGenerators());

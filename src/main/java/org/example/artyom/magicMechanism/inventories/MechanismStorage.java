@@ -10,7 +10,7 @@ import java.io.IOException;
 
 import static org.example.artyom.magicMechanism.data.Keys.KEY_ITEMS;
 
-public final class GenStorage {
+public final class MechanismStorage {
 
 
 

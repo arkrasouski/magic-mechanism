@@ -20,9 +20,10 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
-import org.example.artyom.magicMechanism.inventories.FillGenInventory;
-import org.example.artyom.magicMechanism.inventories.GenHolder;
-import org.example.artyom.magicMechanism.inventories.GenStorage;
+import org.example.artyom.magicMechanism.data.enums.MechanismType;
+import org.example.artyom.magicMechanism.inventories.GenInventory;
+import org.example.artyom.magicMechanism.inventories.MechanismHolder;
+import org.example.artyom.magicMechanism.inventories.MechanismStorage;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.energyitems.EnergyCell;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
@@ -31,9 +32,9 @@ public class GeneratorEvents extends BaseMechanismEvents {
 
  private GeneratorGuiManager guiManager;
  private GeneratorCellService genService;
- private FillGenInventory genInventory;
+ private GenInventory genInventory;
 
-public GeneratorEvents(GeneratorGuiManager guiManager, GeneratorCellService genService, FillGenInventory genInventory) {
+public GeneratorEvents(GeneratorGuiManager guiManager, GeneratorCellService genService, GenInventory genInventory) {
     super(new Generator());
 
     this.guiManager = guiManager;
@@ -43,19 +44,19 @@ public GeneratorEvents(GeneratorGuiManager guiManager, GeneratorCellService genS
 
 @EventHandler
 public void onOpen(InventoryOpenEvent e) {
-    if (!(e.getInventory().getHolder() instanceof GenHolder h)) return;
+    if (!(e.getInventory().getHolder() instanceof MechanismHolder h)) return;
     guiManager.addViewer(h.getLocation(), e.getPlayer().getUniqueId());
 }
 
 
 @EventHandler
 public void onClose(InventoryCloseEvent e) {
-    if (!(e.getView().getTopInventory().getHolder() instanceof GenHolder h)) return;
+    if (!(e.getView().getTopInventory().getHolder() instanceof MechanismHolder h)) return;
 
     guiManager.removeViewer(h.getLocation(), e.getPlayer().getUniqueId());
     BlockState st = h.getLocation().getBlock().getState();
     if (st instanceof TileState tile) {
-        GenStorage.saveItems(tile, e.getView().getTopInventory());
+        MechanismStorage.saveItems(tile, e.getView().getTopInventory());
     }
 }
 @EventHandler
@@ -77,14 +78,14 @@ public void onInteract(PlayerInteractEvent e) {
 
     int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
     int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, this.mechanism.getFrequency());
-    GenHolder holder = new GenHolder(b.getLocation());
+    MechanismHolder holder = new MechanismHolder(b.getLocation(), MechanismType.GENERATOR);
 
     Inventory gui = this.genInventory.openMenu(e.getPlayer(), holder, (double) (buf * 100) / mechanism.getCapacity());
     holder.setInventory(gui);
 
     // если тебе надо переносить реальные предметы из дроппера в GUI — решай сам:
     // либо gui = tile.getInventory(), либо loadItems(tile, gui) из PDC-хранилища.
-    GenStorage.loadItems(tile, gui);
+    MechanismStorage.loadItems(tile, gui);
 
     if (e.getPlayer() instanceof Player p) {
         p.sendMessage(ChatColor.YELLOW + this.mechanism.getName() + ": энергия=" + buf + "/" + this.mechanism.getCapacity()
@@ -95,7 +96,7 @@ public void onInteract(PlayerInteractEvent e) {
     @EventHandler
     public void onClickEnergySlot(InventoryClickEvent e) {
         Inventory top = e.getView().getTopInventory();
-        if (!(top.getHolder() instanceof GenHolder h)) return;
+        if (!(top.getHolder() instanceof MechanismHolder h)) return;
         int slot = e.getSlot(); // индекс в верхнем инвентаре
         Location loc = h.getLocation();
         Block b = loc.getBlock();
@@ -119,7 +120,7 @@ public void onInteract(PlayerInteractEvent e) {
                 GeneratorCellService.onCellRemoved(h.getLocation());
             }
             // КЛЮЧЕВОЕ: синхронизируем PDC сразу чтобы фоновые тики увидели аккумулятор
-            GenStorage.saveItems(tile, top);
+            MechanismStorage.saveItems(tile, top);
         });
     }
 
@@ -127,7 +128,7 @@ public void onInteract(PlayerInteractEvent e) {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShiftToGenerator(InventoryClickEvent e) {
         Inventory top = e.getView().getTopInventory();
-        if (!(top.getHolder() instanceof GenHolder h)) return;
+        if (!(top.getHolder() instanceof MechanismHolder h)) return;
 
         // Только shift-перенос
         if (e.getAction() != InventoryAction.MOVE_TO_OTHER_INVENTORY) return;
@@ -187,7 +188,7 @@ public void onInteract(PlayerInteractEvent e) {
                     GeneratorCellService.onCellRemoved(loc);
                 }
 
-                GenStorage.saveItems(tile, topNow);
+                MechanismStorage.saveItems(tile, topNow);
             }
         });
     }

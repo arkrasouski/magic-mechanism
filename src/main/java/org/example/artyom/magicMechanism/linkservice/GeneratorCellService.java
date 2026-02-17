@@ -14,9 +14,9 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.data.records.BlockPosKey;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
-import org.example.artyom.magicMechanism.inventories.FillGenInventory;
-import org.example.artyom.magicMechanism.inventories.GenHolder;
-import org.example.artyom.magicMechanism.inventories.GenStorage;
+import org.example.artyom.magicMechanism.inventories.GenInventory;
+import org.example.artyom.magicMechanism.inventories.MechanismHolder;
+import org.example.artyom.magicMechanism.inventories.MechanismStorage;
 import org.example.artyom.magicMechanism.energyitems.EnergyCell;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 
@@ -28,9 +28,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class GeneratorCellService {
     private final GeneratorGuiManager guiManager;
-    private final FillGenInventory genInventory;
+    private final GenInventory genInventory;
 
-    public GeneratorCellService(GeneratorGuiManager guiManager, FillGenInventory genInventory) {
+    public GeneratorCellService(GeneratorGuiManager guiManager, GenInventory genInventory) {
         this.guiManager = guiManager;
         this.genInventory = genInventory;
     }
@@ -80,7 +80,7 @@ public final class GeneratorCellService {
 
             // истина из PDC
             Inventory tmp = Bukkit.createInventory(null, 27);
-            GenStorage.loadItems(tile, tmp);
+            MechanismStorage.loadItems(tile, tmp);
             ItemStack cellFromPdc = tmp.getItem(9);
 
             uuids.removeIf(uuid -> {
@@ -88,7 +88,7 @@ public final class GeneratorCellService {
                 if (p == null) return true; // оффлайн [web:331]
 
                 Inventory top = p.getOpenInventory().getTopInventory(); // верхний инвентарь окна [web:239]
-                if (!(top.getHolder() instanceof GenHolder h)) return true;
+                if (!(top.getHolder() instanceof MechanismHolder h)) return true;
 
                 // защита: игрок мог открыть другой генератор
                 if (!BlockPosKey.of(h.getLocation()).equals(k)) return true;
@@ -117,7 +117,7 @@ public final class GeneratorCellService {
         if (!(st instanceof TileState tile)) return false;
 
         Inventory inv = Bukkit.createInventory(null, 27);
-        GenStorage.loadItems(tile, inv);
+        MechanismStorage.loadItems(tile, inv);
 
         ItemStack cell = inv.getItem(9);
         if (!EnergyCell.isEnergyCell(cell)) return false;
@@ -138,7 +138,7 @@ public final class GeneratorCellService {
 
         pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
 
-        GenStorage.saveItems(tile, inv); // внутри tile.update() обязательно [web:65]
+        MechanismStorage.saveItems(tile, inv); // внутри tile.update() обязательно [web:65]
         return true;
     }
 
