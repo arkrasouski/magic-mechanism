@@ -3,9 +3,11 @@ package org.example.artyom.magicMechanism.events;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 
@@ -17,11 +19,14 @@ import org.bukkit.event.player.PlayerInteractEvent;
 
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.Keys;
+import org.example.artyom.magicMechanism.data.enums.BarrierMenuActions;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.inventories.BarrierInventory;
+import org.example.artyom.magicMechanism.inventories.EditPlayerInventory;
 import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
 
@@ -49,12 +54,12 @@ public class BarrierEvents extends BaseMechanismEvents {
             Inventory gui = this.barrierInventory.openMenu(e.getPlayer(), holder, (double) (buf * 100) / mechanism.getCapacity());
             holder.setInventory(gui);
 
-            if(e.getPlayer() instanceof Player p) {
+            Player p = e.getPlayer();
                 p.sendMessage(ChatColor.YELLOW + this.mechanism.getName() + ": энергия=" + this.mechanism.getCurrentEnergy(tile) + "/" + this.mechanism.getCapacity()
                         + " частота=" + this.mechanism.getFrequency());
                 p.openInventory(gui);
             }
-        }
+
     }
 
     @EventHandler
@@ -74,6 +79,31 @@ public class BarrierEvents extends BaseMechanismEvents {
 
     }
 
+    @EventHandler
+    public void onClickEditPlayerBtn(InventoryClickEvent e) {
+        Inventory top = e.getView().getTopInventory();
+        if (!(top.getHolder() instanceof MechanismHolder h)) return;
+        int slot = e.getSlot(); // индекс в верхнем инвентаре
+        ItemStack stack = e.getCurrentItem();
+        if (stack == null) return;
+        PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
+        if(pdc.get(Keys.INVENTORY_ITEM, PersistentDataType.STRING)
+                .equals(BarrierMenuActions.MAIN_MENU_EDIT_PLAYER.menuName)) {
+            HumanEntity  human = e.getWhoClicked();
+            if(human instanceof Player player) {
+                Location loc = h.getLocation();
+                Block b = loc.getBlock();
+                BlockState st = b.getState();
+                if(!(st instanceof TileState tile)) return;
+                int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+                Inventory editPlayerInventory = (new EditPlayerInventory()).openMenu(player, h, (double) (buf * 100) / mechanism.getCapacity());
+
+                player.openInventory(editPlayerInventory);
+            }
+
+        }
+
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShiftToGenerator(InventoryClickEvent e) {
