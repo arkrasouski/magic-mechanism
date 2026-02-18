@@ -1,9 +1,6 @@
 package org.example.artyom.magicMechanism.events;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
@@ -19,16 +16,21 @@ import org.bukkit.event.player.PlayerInteractEvent;
 
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.Keys;
-import org.example.artyom.magicMechanism.data.enums.BarrierMenuActions;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.inventories.BarrierInventory;
 import org.example.artyom.magicMechanism.inventories.EditPlayerInventory;
 import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
+import org.example.artyom.magicMechanism.data.enums.BarrierMenuActions;
+
+import java.sql.SQLOutput;
+
+import static org.example.artyom.magicMechanism.data.enums.BarrierMenuActions.*;
 
 
 public class BarrierEvents extends BaseMechanismEvents {
@@ -88,15 +90,49 @@ public class BarrierEvents extends BaseMechanismEvents {
         if (stack == null) return;
         PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
         if(pdc.get(Keys.INVENTORY_ITEM, PersistentDataType.STRING)
-                .equals(BarrierMenuActions.MAIN_MENU_EDIT_PLAYER.menuName)) {
+                .equals(MAIN_MENU_EDIT_PLAYER.menuName)) {
             HumanEntity  human = e.getWhoClicked();
             if(human instanceof Player player) {
                 Inventory editPlayerInventory = (new EditPlayerInventory()).openMenu(player, h, h.getEnergyPercent()); //Добавил перенос энергии между окнами
-
                 player.openInventory(editPlayerInventory);
             }
 
         }
+
+    }
+
+    @EventHandler
+    public void onClickPlayerSettingsBtns(InventoryClickEvent e) {
+        Inventory top = e.getView().getTopInventory();
+        if (!(top.getHolder() instanceof MechanismHolder h)) return;
+        ItemStack stack = e.getCurrentItem();
+        if (stack == null) return;
+        BarrierMenuActions action = BarrierMenuActions.getActionFromPDC(stack);
+        switch (action) {
+            case PLAYER_SETTINGS_ALLOW_CHEST -> {
+                System.out.println("Разрешены сундуки");
+            }
+            case PLAYER_SETTINGS_DENY_CHEST -> {
+                System.out.println("Запрещены сундуки");
+            }
+            case PLAYER_SETTINGS_ALLOW_DAMAGE -> {
+                System.out.println("Разрешен урон");
+            }
+            case PLAYER_SETTINGS_DENY_DAMAGE -> {
+                System.out.println("Запрещен урон");
+            }
+            case PLAYER_SETTINGS_REMOVE_PLAYER -> {
+                System.out.println("Удален игрок");
+            }
+            case PLAYER_SETTINGS_RETURN -> {
+                System.out.println("Возврат в главное меню");
+            }
+            default -> {
+                // для новых enum без кода
+                System.out.println("Неизвестное действие");
+            }
+        }
+
 
     }
 

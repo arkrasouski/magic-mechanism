@@ -1,5 +1,14 @@
 package org.example.artyom.magicMechanism.data.enums;
 
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.example.artyom.magicMechanism.MagicMechanism;
+import org.example.artyom.magicMechanism.data.Keys;
+
+import java.util.Arrays;
+
 public enum BarrierMenuActions {
 
     MAIN_MENU_ADD_PLAYER("main_menu_add_player"),
@@ -17,5 +26,35 @@ public enum BarrierMenuActions {
         this.menuName = prefix + menuName;
     }
 
+    public String getMenuName() { return menuName; }
+
+    public static BarrierMenuActions fromMenuName(String name) {
+        return Arrays.stream(values())
+                .filter(v -> v.menuName.equals(name))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public static BarrierMenuActions getActionFromPDC(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return null;
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+
+        String actionStr = pdc.get(Keys.INVENTORY_ITEM, PersistentDataType.STRING);
+
+        if (actionStr == null) {
+            return null;
+        }
+
+        try {
+            return BarrierMenuActions.valueOf(actionStr);
+        } catch (IllegalArgumentException e) {
+            MagicMechanism.getInstance().getLogger().warning("Invalid enum in PDC: " + actionStr);
+            return null;
+        }
+    }
 
 }
