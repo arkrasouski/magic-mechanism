@@ -95,7 +95,8 @@ public final class GeneratorCellService {
                 PersistentDataContainer genPDC = tile.getPersistentDataContainer();
                 int currentEnergy = genPDC.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
                 int capacity = genPDC.getOrDefault(Keys.CAPACITY, PersistentDataType.INTEGER, 0);
-                genInventory.updateEnergyBar(top, (double) (currentEnergy * 100) / capacity);
+                double energyPercent = (double) (currentEnergy * 100) / capacity;
+                genInventory.updateEnergyBar(top, h,energyPercent );
 
                 // UI-обновление (при желании добавь фильтр, чтобы не перетирать игрока)
                 if(!EnergyCell.isEnergyCell(cellFromPdc)) return false;

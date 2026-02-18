@@ -26,12 +26,12 @@ public abstract class BaseFillCustomInventory {
 
     public Inventory openMenu(Player p, MechanismHolder holder, double percent) {
         Inventory inv = Bukkit.createInventory(holder, this.size, this.glif);
-        updateEnergyBar(inv, percent);
+        updateEnergyBar(inv, holder, percent);
         return inv;
     }
 
 
-    public void updateEnergyBar(Inventory top, double percent) {
+    public void updateEnergyBar(Inventory top, MechanismHolder h, double percent) {
         int start = this.size - 9, end = this.size - 1;
         int segments = end - start + 1;
         int filled = (int) Math.round(clamp(percent, 0, 100) / 100.0 * segments);
@@ -56,6 +56,7 @@ public abstract class BaseFillCustomInventory {
             }
 
             top.setItem(slot, cs.getItemStack());
+            h.setNewEnergy(percent);
         }
     }
 

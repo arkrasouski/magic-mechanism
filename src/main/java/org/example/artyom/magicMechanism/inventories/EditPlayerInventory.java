@@ -18,7 +18,6 @@ public class EditPlayerInventory extends BaseFillCustomInventory{
     @Override
     public Inventory openMenu(Player p, MechanismHolder holder, double percent) {
         Inventory inv = super.openMenu(p, holder, percent);
-        //inv.setItem();
 
         inv.setItem(0, ItemsUtil.create(Material.LIME_WOOL, 1,
                 "Доступ к сундукам", BarrierMenuActions.PLAYER_SETTINGS_ALLOW_CHEST.menuName,

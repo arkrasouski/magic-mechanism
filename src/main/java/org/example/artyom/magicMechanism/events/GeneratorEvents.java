@@ -78,9 +78,10 @@ public void onInteract(PlayerInteractEvent e) {
 
     int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
     int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, this.mechanism.getFrequency());
-    MechanismHolder holder = new MechanismHolder(b.getLocation(), MechanismType.GENERATOR);
+    double energyPercent = (double) (buf * 100) / mechanism.getCapacity();
+    MechanismHolder holder = new MechanismHolder(b.getLocation(), MechanismType.GENERATOR, energyPercent);
 
-    Inventory gui = this.genInventory.openMenu(e.getPlayer(), holder, (double) (buf * 100) / mechanism.getCapacity());
+    Inventory gui = this.genInventory.openMenu(e.getPlayer(), holder,energyPercent );
     holder.setInventory(gui);
 
     // если тебе надо переносить реальные предметы из дроппера в GUI — решай сам:

@@ -50,8 +50,9 @@ public class BarrierEvents extends BaseMechanismEvents {
             TileState tile = (TileState) clicked.getState();
             int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
             //int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, this.mechanism.getFrequency());
-            MechanismHolder holder = new MechanismHolder(clicked.getLocation(), MechanismType.BARRIER);
-            Inventory gui = this.barrierInventory.openMenu(e.getPlayer(), holder, (double) (buf * 100) / mechanism.getCapacity());
+            double energyPercent = (double) (buf * 100) / mechanism.getCapacity();
+            MechanismHolder holder = new MechanismHolder(clicked.getLocation(), MechanismType.BARRIER, energyPercent);
+            Inventory gui = this.barrierInventory.openMenu(e.getPlayer(), holder, energyPercent);
             holder.setInventory(gui);
 
             Player p = e.getPlayer();
@@ -69,7 +70,7 @@ public class BarrierEvents extends BaseMechanismEvents {
         int slot = e.getSlot(); // индекс в верхнем инвентаре
         Location loc = h.getLocation();
         Block b = loc.getBlock();
-        BlockState st = b.getState();
+
         if(!Barrier.isBarrier(b)) return;
         if(e.getRawSlot() >= barrierInventory.getSize()) return;
 
@@ -83,7 +84,6 @@ public class BarrierEvents extends BaseMechanismEvents {
     public void onClickEditPlayerBtn(InventoryClickEvent e) {
         Inventory top = e.getView().getTopInventory();
         if (!(top.getHolder() instanceof MechanismHolder h)) return;
-        int slot = e.getSlot(); // индекс в верхнем инвентаре
         ItemStack stack = e.getCurrentItem();
         if (stack == null) return;
         PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
@@ -91,12 +91,7 @@ public class BarrierEvents extends BaseMechanismEvents {
                 .equals(BarrierMenuActions.MAIN_MENU_EDIT_PLAYER.menuName)) {
             HumanEntity  human = e.getWhoClicked();
             if(human instanceof Player player) {
-                Location loc = h.getLocation();
-                Block b = loc.getBlock();
-                BlockState st = b.getState();
-                if(!(st instanceof TileState tile)) return;
-                int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
-                Inventory editPlayerInventory = (new EditPlayerInventory()).openMenu(player, h, (double) (buf * 100) / mechanism.getCapacity());
+                Inventory editPlayerInventory = (new EditPlayerInventory()).openMenu(player, h, h.getEnergyPercent()); //Добавил перенос энергии между окнами
 
                 player.openInventory(editPlayerInventory);
             }
