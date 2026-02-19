@@ -50,7 +50,7 @@ public enum BarrierMenuActions {
         }
 
         try {
-            return BarrierMenuActions.valueOf(actionStr);
+            return BarrierMenuActions.valueOf(actionStr.split("BARRIER_")[1]);
         } catch (IllegalArgumentException e) {
             MagicMechanism.getInstance().getLogger().warning("Invalid enum in PDC: " + actionStr);
             return null;

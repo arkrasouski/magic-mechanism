@@ -82,24 +82,24 @@ public class BarrierEvents extends BaseMechanismEvents {
 
     }
 
-    @EventHandler
-    public void onClickEditPlayerBtn(InventoryClickEvent e) {
-        Inventory top = e.getView().getTopInventory();
-        if (!(top.getHolder() instanceof MechanismHolder h)) return;
-        ItemStack stack = e.getCurrentItem();
-        if (stack == null) return;
-        PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
-        if(pdc.get(Keys.INVENTORY_ITEM, PersistentDataType.STRING)
-                .equals(MAIN_MENU_EDIT_PLAYER.menuName)) {
-            HumanEntity  human = e.getWhoClicked();
-            if(human instanceof Player player) {
-                Inventory editPlayerInventory = (new EditPlayerInventory()).openMenu(player, h, h.getEnergyPercent()); //Добавил перенос энергии между окнами
-                player.openInventory(editPlayerInventory);
-            }
-
-        }
-
-    }
+//    @EventHandler
+//    public void onClickEditPlayerBtn(InventoryClickEvent e) {
+//        Inventory top = e.getView().getTopInventory();
+//        if (!(top.getHolder() instanceof MechanismHolder h)) return;
+//        ItemStack stack = e.getCurrentItem();
+//        if (stack == null) return;
+//        PersistentDataContainer pdc = stack.getItemMeta().getPersistentDataContainer();
+//        if(pdc.get(Keys.INVENTORY_ITEM, PersistentDataType.STRING)
+//                .equals(MAIN_MENU_EDIT_PLAYER.menuName)) {
+//            HumanEntity  human = e.getWhoClicked();
+//            if(human instanceof Player player) {
+//                Inventory editPlayerInventory = (new EditPlayerInventory()).openMenu(player, h, h.getEnergyPercent()); //Добавил перенос энергии между окнами
+//                player.openInventory(editPlayerInventory);
+//            }
+//
+//        }
+//
+//    }
 
     @EventHandler
     public void onClickPlayerSettingsBtns(InventoryClickEvent e) {
@@ -108,7 +108,15 @@ public class BarrierEvents extends BaseMechanismEvents {
         ItemStack stack = e.getCurrentItem();
         if (stack == null) return;
         BarrierMenuActions action = BarrierMenuActions.getActionFromPDC(stack);
+        HumanEntity  human = e.getWhoClicked();
+        if(human instanceof Player player) {
         switch (action) {
+            case MAIN_MENU_EDIT_PLAYER -> {
+
+                    Inventory editPlayerInventory = (new EditPlayerInventory()).openMenu(player, h, h.getEnergyPercent()); //Добавил перенос энергии между окнами
+                    player.openInventory(editPlayerInventory);
+
+            }
             case PLAYER_SETTINGS_ALLOW_CHEST -> {
                 System.out.println("Разрешены сундуки");
             }
@@ -126,10 +134,13 @@ public class BarrierEvents extends BaseMechanismEvents {
             }
             case PLAYER_SETTINGS_RETURN -> {
                 System.out.println("Возврат в главное меню");
+                Inventory mainBarrierInventory = (new BarrierInventory()).openMenu(player, h, h.getEnergyPercent());
+                player.openInventory(mainBarrierInventory);
             }
             default -> {
                 // для новых enum без кода
                 System.out.println("Неизвестное действие");
+            }
             }
         }
 

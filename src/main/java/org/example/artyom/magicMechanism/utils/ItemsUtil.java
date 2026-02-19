@@ -23,7 +23,7 @@ public class ItemsUtil {
         meta.getPersistentDataContainer().set(
                 Keys.INVENTORY_ITEM,
                 PersistentDataType.STRING,
-                menu_class
+                menu_class.toUpperCase()
         );
         item.setItemMeta(meta);
         return item;
