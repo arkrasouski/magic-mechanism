@@ -1,12 +1,11 @@
-package org.example.artyom.magicMechanism.inventories;
+package org.example.artyom.magicMechanism.inventories.barrier;
 
 import org.bukkit.Location;
-import org.example.artyom.magicMechanism.data.enums.BarrierMenuActions;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
-import org.example.artyom.magicMechanism.data.enums.Screen;
 import org.example.artyom.magicMechanism.data.enums.ScreenCategory;
+import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 
-public class BarrierHolder extends MechanismHolder{
+public class BarrierHolder extends MechanismHolder {
 
         ScreenCategory screen;
 

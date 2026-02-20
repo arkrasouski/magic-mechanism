@@ -1,4 +1,6 @@
-package org.example.artyom.magicMechanism.data.enums;
+package org.example.artyom.magicMechanism.data.enums.barrier;
+
+import org.example.artyom.magicMechanism.data.enums.ScreenCategory;
 
 public enum BarrierScreenCategory implements ScreenCategory {
     MAIN_MENU("Главное меню"),

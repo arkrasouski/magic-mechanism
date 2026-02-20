@@ -18,19 +18,27 @@ import org.bukkit.event.player.PlayerInteractEvent;
 
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.data.enums.*;
+import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActionSlot;
+import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActions;
+import org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions;
+import org.example.artyom.magicMechanism.data.enums.barrier.BarrierScreenCategory;
 import org.example.artyom.magicMechanism.inventories.*;
+import org.example.artyom.magicMechanism.inventories.barrier.BarrierHolder;
+import org.example.artyom.magicMechanism.inventories.barrier.BarrierInventory;
+import org.example.artyom.magicMechanism.inventories.barrier.EditPlayerHolder;
+import org.example.artyom.magicMechanism.inventories.barrier.EditPlayerInventory;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
+import org.example.artyom.magicMechanism.utils.ItemsUtil;
 
-import java.sql.SQLOutput;
+import java.util.List;
 
-import static org.example.artyom.magicMechanism.data.enums.BarrierMenuActions.*;
-import static org.example.artyom.magicMechanism.data.enums.BarrierPlayerSettingsMenuActions.*;
+import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions.PLAYER_SETTINGS_ALLOW_CHEST;
+import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions.PLAYER_SETTINGS_DENY_CHEST;
 
 
 public class BarrierEvents extends BaseMechanismEvents {
@@ -70,30 +78,73 @@ public class BarrierEvents extends BaseMechanismEvents {
 
     @EventHandler
     public void onOpen(InventoryOpenEvent e) {
-        if (!(e.getInventory().getHolder() instanceof BarrierHolder h)) return;
-        Location loc = h.getLocation();
-        Block b = loc.getBlock();
-        if (!Barrier.isBarrier(b)) return;
-        if (!(b.getState() instanceof TileState tile)) return;
-        System.out.println("lol");
-        if (h.getScreenCategory() == BarrierScreenCategory.MAIN_MENU) {
-            System.out.println("in");
-            MechanismStorage.loadItems(tile, e.getView().getTopInventory(), Keys.BARRIER_INV_MAIN);
+        Object holderObj = e.getInventory().getHolder();
+        System.out.println("=== onOpen DEBUG ===");
+        System.out.println("Holder: " + (holderObj != null ? holderObj.getClass().getSimpleName() : "null"));
+        System.out.println("Title: '" + e.getView().getTitle() + "'");
+        System.out.println("Size: " + e.getInventory().getSize());
+
+        if (holderObj instanceof BarrierHolder h) {
+            System.out.println("✅ BarrierHolder | Category: " + h.getScreenCategory());
+            Location loc = h.getLocation();
+            Block b = loc.getBlock();
+            if (Barrier.isBarrier(b) && b.getState() instanceof TileState tile) {
+                if (h.getScreenCategory() == BarrierScreenCategory.MAIN_MENU) {
+                    boolean hasData = tile.getPersistentDataContainer().has(Keys.BARRIER_INV_MAIN);
+                    System.out.println("MAIN_MENU data exists: " + hasData);
+                    if (hasData) {
+                        MechanismStorage.loadItems(tile, e.getView().getTopInventory(), Keys.BARRIER_INV_MAIN);
+                        System.out.println("✓ Загружено MAIN_MENU");
+                    }
+                }
+            }
+        } else {
+            System.out.println("❌ НЕ BarrierHolder: " + holderObj);
         }
     }
 
     @EventHandler
     public void onClose(InventoryCloseEvent e) {
-        if (!(e.getView().getTopInventory().getHolder() instanceof BarrierHolder h)) return;
 
-        BlockState st = h.getLocation().getBlock().getState();
-        if (st instanceof TileState tile) {
+//        if (!(e.getView().getTopInventory().getHolder() instanceof BarrierHolder h)) return;
+//
+//        BlockState st = h.getLocation().getBlock().getState();
+//        if (st instanceof TileState tile) {
+//            Inventory currentInv = e.getView().getTopInventory();
+//            if (h.getScreenCategory() == BarrierScreenCategory.MAIN_MENU) {
+//                MechanismStorage.saveItems(tile, currentInv, Keys.BARRIER_INV_MAIN
+//                );
+//            }
+//            else if (h.getScreenCategory() == BarrierScreenCategory.PLAYER_SETTINGS && (h instanceof EditPlayerHolder holder)) {
+//                MechanismStorage.saveItems(tile, currentInv, Keys.BARRIER_INV_EDIT_PLAYER[holder.getSlot()]);
+//            }
+//            }
+        Object holderObj = e.getView().getTopInventory().getHolder();
+        System.out.println("Закрытие: " + (holderObj != null ? holderObj.getClass().getSimpleName() : "null"));
+
+        BlockState st = null;
+        NamespacedKey saveKey = null;
+
+        // BarrierHolder (ТОЛЬКО главный класс)
+        if (holderObj != null && holderObj.getClass() == BarrierHolder.class) {
+            BarrierHolder h = (BarrierHolder) holderObj;
             if (h.getScreenCategory() == BarrierScreenCategory.MAIN_MENU) {
-                MechanismStorage.saveItems(tile, e.getView().getTopInventory(), Keys.BARRIER_INV_MAIN
-                );
+                st = h.getLocation().getBlock().getState();
+                saveKey = Keys.BARRIER_INV_MAIN;
             }
-            }
+        }
+        // EditPlayerHolder (наследник)
+        else if (holderObj instanceof EditPlayerHolder holder) {
+            st = holder.getLocation().getBlock().getState();
+            saveKey = Keys.BARRIER_INV_EDIT_PLAYER[holder.getSlot() - 1];
+        }
 
+        if (st instanceof TileState tile && saveKey != null) {
+            System.out.println("Сохраняем под ключом: " + saveKey);
+            MechanismStorage.saveItems(tile, e.getView().getTopInventory(), saveKey);
+        } else {
+            System.out.println("НЕ сохраняем: st=" + (st != null) + ", key=" + saveKey);
+        }
     }
 
     @EventHandler
@@ -122,42 +173,36 @@ public class BarrierEvents extends BaseMechanismEvents {
         if (stack == null) return;
         MenuAction action = MenuAction.fromPDC(stack, Keys.INVENTORY_ITEM);
         HumanEntity  human = e.getWhoClicked();
-
+        System.out.println("action" + action);
         if(human instanceof Player player) {
-            if(action instanceof BarrierMenuActions a) {
-                switch (a) {
+            if(action instanceof BarrierMenuActionSlot a) {
+                System.out.println("dadadad" + a);
+                switch (a.action) {
                     case MAIN_MENU_EDIT_PLAYER -> {
+                        System.out.println("Открываем EditPlayer слот " + a.getSlotPlayer());
 
+                        // 1. СОЗДАЕМ НОВЫЙ инвентарь
                         EditPlayerHolder newHolder = new EditPlayerHolder(
-                                h.getLocation(),
-                                MechanismType.BARRIER,
-                                h.getEnergyPercent(),
-                                BarrierScreenCategory.PLAYER_SETTINGS
+                                h.getLocation(), MechanismType.BARRIER, h.getEnergyPercent(),
+                                BarrierScreenCategory.PLAYER_SETTINGS, a.getSlotPlayer()
                         );
 
+                        Inventory newInv = new EditPlayerInventory().openMenu(player, newHolder, h.getEnergyPercent());
 
-                            Inventory newInv = new EditPlayerInventory().openMenu(player, newHolder, h.getEnergyPercent());
+                        // 2. Загружаем ТОЛЬКО в НОВЫЙ инвентарь!
+                        Location loc = h.getLocation();
+                        Block b = loc.getBlock();
+                        BlockState bs = b.getState();
+                        if(bs instanceof TileState tile) {
+                            NamespacedKey editKey = Keys.BARRIER_INV_EDIT_PLAYER[a.getSlotPlayer() - 1];
+                            if(tile.getPersistentDataContainer().has(editKey)){
+                                MechanismStorage.loadItems(tile, newInv, editKey); // ← newInv!!!
+                                System.out.println("Загружено EditPlayer из " + editKey);
+                            }
+                        }
 
-
-//                            System.out.println("=== НОВЫЙ ИНВЕНТАРЬ ===");
-//                            System.out.println("Заголовок: " + newInv.getHolder().toString());
-//                            System.out.println("Размер: " + newInv.getSize());
-//                            System.out.println("Холдер: " + newInv.getHolder().getClass().getSimpleName());
-//
-//                            int nonEmptySlots = 0;
-//                            for (int i = 0; i < newInv.getSize(); i++) {
-//                                if (newInv.getItem(i) != null) {
-//                                    System.out.println("Слот " + i + ": " + newInv.getItem(i).getType());
-//                                    nonEmptySlots++;
-//                                }
-//                            }
-//                            System.out.println("Непустых слотов: " + nonEmptySlots);
-
-                            player.openInventory(newInv);
+                        player.openInventory(newInv);
                         return;
-
-
-
 
                     }
                     default -> {
@@ -171,9 +216,15 @@ public class BarrierEvents extends BaseMechanismEvents {
                 switch (a) {
                     case PLAYER_SETTINGS_ALLOW_CHEST -> {
                         System.out.println("Разрешены сундуки");
-                    }
+                        top.setItem(0, ItemsUtil.create(Material.PINK_WOOL, 1,
+                "Запрет открывать сундуки", PLAYER_SETTINGS_DENY_CHEST.getPdcKey(),
+                List.of("Нажмите, чтобы запретить", "использовать сундуки, печки и т.д.")));
+        }
                     case PLAYER_SETTINGS_DENY_CHEST -> {
                         System.out.println("Запрещены сундуки");
+                        top.setItem(0, ItemsUtil.create(Material.LIME_WOOL, 1,
+                                "Доступ к сундукам", PLAYER_SETTINGS_ALLOW_CHEST.getPdcKey(),
+                                List.of("Нажмите, чтобы разрешить", "использовать сундуки, печки и т.д.")));
                     }
                     case PLAYER_SETTINGS_ALLOW_DAMAGE -> {
                         System.out.println("Разрешен урон");

@@ -1,4 +1,8 @@
-package org.example.artyom.magicMechanism.data.enums;
+package org.example.artyom.magicMechanism.data.enums.barrier;
+
+import org.example.artyom.magicMechanism.data.enums.MenuAction;
+import org.example.artyom.magicMechanism.data.enums.Screen;
+import org.example.artyom.magicMechanism.data.enums.ScreenCategory;
 
 import java.util.List;
 

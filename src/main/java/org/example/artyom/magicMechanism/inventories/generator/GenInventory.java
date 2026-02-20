@@ -1,4 +1,6 @@
-package org.example.artyom.magicMechanism.inventories;
+package org.example.artyom.magicMechanism.inventories.generator;
+
+import org.example.artyom.magicMechanism.inventories.BaseFillCustomInventory;
 
 import java.util.Arrays;
 

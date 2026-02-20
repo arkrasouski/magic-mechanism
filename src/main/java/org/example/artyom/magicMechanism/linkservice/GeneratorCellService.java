@@ -14,7 +14,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.data.records.BlockPosKey;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
-import org.example.artyom.magicMechanism.inventories.GenInventory;
+import org.example.artyom.magicMechanism.inventories.generator.GenInventory;
 import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 import org.example.artyom.magicMechanism.inventories.MechanismStorage;
 import org.example.artyom.magicMechanism.energyitems.EnergyCell;

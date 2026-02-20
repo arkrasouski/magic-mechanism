@@ -3,6 +3,10 @@ package org.example.artyom.magicMechanism.data.enums;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
+import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActionSlot;
+import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActions;
+import org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerListMenuActions;
+import org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions;
 
 public interface MenuAction {
     String getPdcKey();  // "BARRIER_MAIN_MENU_ADD_PLAYER"
@@ -13,12 +17,13 @@ public interface MenuAction {
         String actionStr = item.getItemMeta()
                 .getPersistentDataContainer()
                 .get(key, PersistentDataType.STRING);
-
+        System.out.println(actionStr);
         if (actionStr == null) return null;
         // Пробуем разные enum по префиксу
         if (actionStr.startsWith("BARRIER_")) {
             try {
-                return BarrierMenuActions.fromString(actionStr.replaceAll("_\\d+$", ""));
+                System.out.println(actionStr);
+                return new BarrierMenuActionSlot(Integer.parseInt(actionStr.split(":")[1]));
             } catch (Exception ignored) {}
         } else if (actionStr.startsWith("PLAYERLIST_")) {
             return BarrierPlayerListMenuActions.fromString(actionStr);
