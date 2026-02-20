@@ -9,7 +9,7 @@ public interface MenuAction {
 
     static MenuAction fromPDC(ItemStack item, NamespacedKey key) {
         if (item == null || !item.hasItemMeta()) return null;
-        System.out.println("pdc");
+
         String actionStr = item.getItemMeta()
                 .getPersistentDataContainer()
                 .get(key, PersistentDataType.STRING);

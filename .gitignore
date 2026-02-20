@@ -190,12 +190,12 @@ build/
 .settings
 bin
 build
+gradle/
 target
 dependency-reduced-pom.xml
 *.sublime-*
 /scratch
 .gradle
 README.html
-*.iml
-.idea
+
 .exercism
