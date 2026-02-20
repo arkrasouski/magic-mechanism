@@ -22,6 +22,7 @@ import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.inventories.GenInventory;
+import org.example.artyom.magicMechanism.inventories.GeneratorHolder;
 import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 import org.example.artyom.magicMechanism.inventories.MechanismStorage;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
@@ -56,7 +57,7 @@ public void onClose(InventoryCloseEvent e) {
     guiManager.removeViewer(h.getLocation(), e.getPlayer().getUniqueId());
     BlockState st = h.getLocation().getBlock().getState();
     if (st instanceof TileState tile) {
-        MechanismStorage.saveItems(tile, e.getView().getTopInventory());
+        MechanismStorage.saveItems(tile, e.getView().getTopInventory(), Keys.KEY_ITEMS);
     }
 }
 @EventHandler
@@ -79,20 +80,20 @@ public void onInteract(PlayerInteractEvent e) {
     int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
     int freq = tile.getPersistentDataContainer().getOrDefault(Keys.FREQ, PersistentDataType.INTEGER, this.mechanism.getFrequency());
     double energyPercent = (double) (buf * 100) / mechanism.getCapacity();
-    MechanismHolder holder = new MechanismHolder(b.getLocation(), MechanismType.GENERATOR, energyPercent);
+    MechanismHolder holder = new GeneratorHolder(b.getLocation(), MechanismType.GENERATOR, energyPercent);
 
     Inventory gui = this.genInventory.openMenu(e.getPlayer(), holder,energyPercent );
     holder.setInventory(gui);
 
     // если тебе надо переносить реальные предметы из дроппера в GUI — решай сам:
     // либо gui = tile.getInventory(), либо loadItems(tile, gui) из PDC-хранилища.
-    MechanismStorage.loadItems(tile, gui);
+    MechanismStorage.loadItems(tile, gui, Keys.KEY_ITEMS);
 
-    if (e.getPlayer() instanceof Player p) {
+    Player p = e.getPlayer();
         p.sendMessage(ChatColor.YELLOW + this.mechanism.getName() + ": энергия=" + buf + "/" + this.mechanism.getCapacity()
                 + " частота=" + freq);
         p.openInventory(gui);
-    }
+
 }
     @EventHandler
     public void onClickEnergySlot(InventoryClickEvent e) {
@@ -121,7 +122,7 @@ public void onInteract(PlayerInteractEvent e) {
                 GeneratorCellService.onCellRemoved(h.getLocation());
             }
             // КЛЮЧЕВОЕ: синхронизируем PDC сразу чтобы фоновые тики увидели аккумулятор
-            MechanismStorage.saveItems(tile, top);
+            MechanismStorage.saveItems(tile, top, Keys.KEY_ITEMS);
         });
     }
 
@@ -189,7 +190,7 @@ public void onInteract(PlayerInteractEvent e) {
                     GeneratorCellService.onCellRemoved(loc);
                 }
 
-                MechanismStorage.saveItems(tile, topNow);
+                MechanismStorage.saveItems(tile, topNow, Keys.KEY_ITEMS);
             }
         });
     }

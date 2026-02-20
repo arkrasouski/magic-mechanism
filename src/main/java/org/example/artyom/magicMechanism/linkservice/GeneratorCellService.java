@@ -80,7 +80,7 @@ public final class GeneratorCellService {
 
             // истина из PDC
             Inventory tmp = Bukkit.createInventory(null, 27);
-            MechanismStorage.loadItems(tile, tmp);
+            MechanismStorage.loadItems(tile, tmp, Keys.KEY_ITEMS);
             ItemStack cellFromPdc = tmp.getItem(9);
 
             uuids.removeIf(uuid -> {
@@ -118,7 +118,7 @@ public final class GeneratorCellService {
         if (!(st instanceof TileState tile)) return false;
 
         Inventory inv = Bukkit.createInventory(null, 27);
-        MechanismStorage.loadItems(tile, inv);
+        MechanismStorage.loadItems(tile, inv, Keys.KEY_ITEMS);
 
         ItemStack cell = inv.getItem(9);
         if (!EnergyCell.isEnergyCell(cell)) return false;
@@ -139,7 +139,7 @@ public final class GeneratorCellService {
 
         pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
 
-        MechanismStorage.saveItems(tile, inv); // внутри tile.update() обязательно [web:65]
+        MechanismStorage.saveItems(tile, inv, Keys.KEY_ITEMS); // внутри tile.update() обязательно [web:65]
         return true;
     }
 

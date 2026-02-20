@@ -22,9 +22,10 @@ public class BarrierInventory extends BaseFillCustomInventory{
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 9; j++) {
                 if(j < 4) {
+                    int num = (j+1) + 4  * i;
                     inv.setItem(j + (9 * i), ItemsUtil.create(Material.BLUE_WOOL, 1,
-                            "Игрок №" + ((j+1) + 4  * i),
-                            BarrierMenuActions.MAIN_MENU_EDIT_PLAYER.menuName,
+                            "Игрок №" + num,
+                            BarrierMenuActions.MAIN_MENU_EDIT_PLAYER.getPdcKey(num),
                             List.of("Добавить")));
                 }
 
@@ -32,7 +33,7 @@ public class BarrierInventory extends BaseFillCustomInventory{
             }
         }
         inv.setItem(14, ItemsUtil.create(Material.GREEN_WOOL, 1,
-                "Добавить игрока", BarrierMenuActions.MAIN_MENU_ADD_PLAYER.menuName,
+                "Добавить игрока", BarrierMenuActions.MAIN_MENU_ADD_PLAYER.getPdcKey(),
                 List.of("Нажмите, чтобы добавить игрока в приват")));
 
         return inv;

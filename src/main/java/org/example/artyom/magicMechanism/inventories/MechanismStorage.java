@@ -1,5 +1,6 @@
 package org.example.artyom.magicMechanism.inventories;
 
+import org.bukkit.NamespacedKey;
 import org.bukkit.block.TileState;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -8,15 +9,15 @@ import org.example.artyom.magicMechanism.utils.ItemStackArrayCodec;
 
 import java.io.IOException;
 
-import static org.example.artyom.magicMechanism.data.Keys.KEY_ITEMS;
 
-public final class MechanismStorage {
-
+public class MechanismStorage {
 
 
 
-    public static void loadItems(TileState tile, Inventory inv) {
-        String encoded = tile.getPersistentDataContainer().get(KEY_ITEMS, PersistentDataType.STRING);
+
+    public static void loadItems(TileState tile, Inventory inv, NamespacedKey key) {
+        System.out.println(key);
+        String encoded = tile.getPersistentDataContainer().get(key, PersistentDataType.STRING);
         if (encoded == null || encoded.isBlank()) return;
 
         try {
@@ -27,16 +28,16 @@ public final class MechanismStorage {
             inv.setContents(trimmed);
         } catch (IOException ex) {
             // если данные битые — можно очистить, чтобы не падало постоянно
-            tile.getPersistentDataContainer().remove(KEY_ITEMS);
+            tile.getPersistentDataContainer().remove(key);
             tile.update(); // применить remove [web:69]
         }
 
     }
 
-    public static void saveItems(TileState tile, Inventory inv) {
+    public static void saveItems(TileState tile, Inventory inv, NamespacedKey key) {
         String encoded = ItemStackArrayCodec.toBase64(inv.getContents());
         tile.getPersistentDataContainer()
-                .set(KEY_ITEMS, PersistentDataType.STRING, encoded); // [web:34]
+                .set(key, PersistentDataType.STRING, encoded); // [web:34]
 
         // важно: применить изменения TileState к реальному блоку
         tile.update(); // без этого PDC останется только в snapshot [web:33]
