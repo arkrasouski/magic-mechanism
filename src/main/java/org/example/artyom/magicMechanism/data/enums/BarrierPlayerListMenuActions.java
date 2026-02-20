@@ -12,6 +12,7 @@ public enum BarrierPlayerListMenuActions implements Screen, MenuAction {
     }
 
     public static BarrierPlayerListMenuActions fromString(String fullName) {
+
         return MenuAction.fromString(fullName, BarrierPlayerListMenuActions.class);
     }
 

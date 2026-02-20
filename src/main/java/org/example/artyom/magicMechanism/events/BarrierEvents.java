@@ -122,6 +122,7 @@ public class BarrierEvents extends BaseMechanismEvents {
         if (stack == null) return;
         MenuAction action = MenuAction.fromPDC(stack, Keys.INVENTORY_ITEM);
         HumanEntity  human = e.getWhoClicked();
+
         if(human instanceof Player player) {
             if(action instanceof BarrierMenuActions a) {
                 switch (a) {
@@ -166,6 +167,7 @@ public class BarrierEvents extends BaseMechanismEvents {
                 }
             }
             else if (action instanceof BarrierPlayerSettingsMenuActions a) {
+
                 switch (a) {
                     case PLAYER_SETTINGS_ALLOW_CHEST -> {
                         System.out.println("Разрешены сундуки");

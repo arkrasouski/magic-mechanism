@@ -15,8 +15,8 @@ public enum BarrierPlayerSettingsMenuActions implements Screen, MenuAction {
         return "PLAYERSETTINGS_" + name();
     }
 
-    public static BarrierMenuActions fromString(String fullName) {
-        return MenuAction.fromString(fullName, BarrierMenuActions.class);
+    public static BarrierPlayerSettingsMenuActions fromString(String fullName) {
+        return MenuAction.fromString(fullName, BarrierPlayerSettingsMenuActions.class);
     }
 
 

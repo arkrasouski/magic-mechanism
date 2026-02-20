@@ -15,8 +15,6 @@ public interface MenuAction {
                 .get(key, PersistentDataType.STRING);
 
         if (actionStr == null) return null;
-        System.out.println("is not null: " + actionStr);
-        System.out.println(actionStr.replaceAll("_\\d+$", ""));
         // Пробуем разные enum по префиксу
         if (actionStr.startsWith("BARRIER_")) {
             try {
@@ -25,7 +23,9 @@ public interface MenuAction {
         } else if (actionStr.startsWith("PLAYERLIST_")) {
             return BarrierPlayerListMenuActions.fromString(actionStr);
         }
-        // Другие enum...
+       else if (actionStr.startsWith("PLAYERSETTINGS_")) {
+            return BarrierPlayerSettingsMenuActions.fromString(actionStr);
+        }
 
         return null;
     }

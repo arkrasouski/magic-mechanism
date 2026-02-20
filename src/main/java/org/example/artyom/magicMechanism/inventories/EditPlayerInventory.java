@@ -28,12 +28,12 @@ public class EditPlayerInventory extends BaseFillCustomInventory{
         inv.setItem(1, ItemsUtil.create(Material.GREEN_WOOL, 1,
                 "Доступ к нанесению урона", PLAYER_SETTINGS_ALLOW_DAMAGE.getPdcKey(),
                 List.of("Нажмите, чтобы разрешить", "наносить урон")));
-        inv.setItem(8, ItemsUtil.create(Material.REDSTONE_BLOCK, 1,
-                "Удалить игрока из привата", PLAYER_SETTINGS_REMOVE_PLAYER.getPdcKey(),
-                List.of("Нажмите, чтобы удалить", "игрока из привата")));
-        inv.setItem(9, ItemsUtil.create(Material.PINK_WOOL, 1,
-                "Запрет открывать сундуки", PLAYER_SETTINGS_DENY_CHEST.getPdcKey(),
-                List.of("Нажмите, чтобы запретить", "использовать сундуки, печки и т.д.")));
+//        inv.setItem(8, ItemsUtil.create(Material.REDSTONE_BLOCK, 1,
+//                "Удалить игрока из привата", PLAYER_SETTINGS_REMOVE_PLAYER.getPdcKey(),
+//                List.of("Нажмите, чтобы удалить", "игрока из привата")));
+//        inv.setItem(9, ItemsUtil.create(Material.PINK_WOOL, 1,
+//                "Запрет открывать сундуки", PLAYER_SETTINGS_DENY_CHEST.getPdcKey(),
+//                List.of("Нажмите, чтобы запретить", "использовать сундуки, печки и т.д.")));
         inv.setItem(10, ItemsUtil.create(Material.RED_WOOL, 1,
                 "Запрет наносить урон", PLAYER_SETTINGS_DENY_DAMAGE.getPdcKey(),
                 List.of("Нажмите, чтобы запретить", "наносить урон")));
