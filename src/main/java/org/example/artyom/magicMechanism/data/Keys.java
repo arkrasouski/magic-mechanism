@@ -15,6 +15,7 @@ public final class Keys {
 
     public static NamespacedKey BARRIER_INV_MAIN;
     public static NamespacedKey[] BARRIER_INV_EDIT_PLAYER = new NamespacedKey[12];
+    public static NamespacedKey[] BARRIER_ADDED_PLAYER_NAMES = new NamespacedKey[12];
 
     public static void init(JavaPlugin plugin) {
         CELL = new NamespacedKey(plugin, "energy_cell");
@@ -31,7 +32,9 @@ public final class Keys {
 
         for(int i = 0; i < BARRIER_INV_EDIT_PLAYER.length; i++) {
             BARRIER_INV_EDIT_PLAYER[i] = new NamespacedKey(plugin, "BARRIER_MAIN_MENU_EDIT_PLAYER_" + i);
-
+        }
+        for(int i = 0; i < BARRIER_ADDED_PLAYER_NAMES.length; i++) {
+            BARRIER_ADDED_PLAYER_NAMES[i] = new NamespacedKey(plugin, "BARRIER_ADDED_PLAYER_NAMES_" + i);
         }
     }
 }

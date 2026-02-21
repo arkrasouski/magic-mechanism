@@ -72,9 +72,9 @@ public class BarrierEvents extends BaseMechanismEvents {
             //  Inventory mainInventory = this.barrierInventory.openMenu(p, holder, energyPercent);
 
             // Загрузка + энергия
-            if(container.has(Keys.BARRIER_INV_MAIN)){
-                MechanismStorage.loadItems(tile, mainInventory, Keys.BARRIER_INV_MAIN);
-            }
+//            if(container.has(Keys.BARRIER_INV_MAIN)){
+//                MechanismStorage.loadItems(tile, mainInventory, Keys.BARRIER_INV_MAIN);
+//            }
             this.barrierInventory.updateEnergyBar(mainInventory, holder, energyPercent);
 
             //holder.setInventory(mainInventory);
@@ -118,6 +118,7 @@ public class BarrierEvents extends BaseMechanismEvents {
             st = holder.getLocation().getBlock().getState();
             saveKey = Keys.BARRIER_INV_EDIT_PLAYER[holder.getSlot() - 1];
         }
+
 
         if (st instanceof TileState tile && saveKey != null) {
             System.out.println("Сохраняем под ключом: " + saveKey);
@@ -180,7 +181,9 @@ public class BarrierEvents extends BaseMechanismEvents {
                                 this.barrierInventory.updateEnergyBar(newInv, newHolder , h.getEnergyPercent());
                             }
                         }
-
+                        if(e.getCurrentItem().getItemMeta().getDisplayName().startsWith("Игрок №")){
+                            return;
+                        }
                         player.openInventory(newInv);
                         return;
 
@@ -265,33 +268,25 @@ public class BarrierEvents extends BaseMechanismEvents {
             }
             else if (action instanceof BarrierPlayerListMenuActionSlot a) {
                 if (a.action == BarrierPlayerListMenuActions.PLAYERLIST) {
-                        LogUtil.warn("PLAYER!" + a.getSlotPlayer());
                         ItemStack clicked = e.getCurrentItem();
-                        e.getInventory().setItem(a.getSlotPlayer(), ItemsUtil.create(Material.LIME_WOOL, 1, clicked.getItemMeta().getDisplayName(),
+                        String playerName = clicked.getItemMeta().getDisplayName();
+                        e.getInventory().setItem(a.getSlotPlayer(), ItemsUtil.create(Material.LIME_WOOL, 1, playerName,
                                 a.getPdcKey(), List.of("Игрок добавлен в приват!")));
-//                    // 1. СОЗДАЕМ НОВЫЙ инвентарь
-//                    EditPlayerHolder newHolder = new EditPlayerHolder(
-//                            h.getLocation(), MechanismType.BARRIER, h.getEnergyPercent(),
-//                            BarrierScreenCategory.PLAYER_SETTINGS, a.getSlotPlayer()
-//                    );
-//
-//                    Inventory newInv = new EditPlayerInventory().openMenu(player, newHolder, h.getEnergyPercent());
-//
-//                    // 2. Загружаем ТОЛЬКО в НОВЫЙ инвентарь!
-//                    Location loc = h.getLocation();
-//                    Block b = loc.getBlock();
-//                    BlockState bs = b.getState();
-//                    if(bs instanceof TileState tile) {
-//                        NamespacedKey editKey = Keys.BARRIER_INV_EDIT_PLAYER[a.getSlotPlayer() - 1];
-//                        if(tile.getPersistentDataContainer().has(editKey)){
-//                            MechanismStorage.loadItems(tile, newInv, editKey); // ← newInv!!!
-//
-//                            this.barrierInventory.updateEnergyBar(newInv, newHolder , h.getEnergyPercent());
-//                        }
-//                    }
-//
-//                    player.openInventory(newInv);
-//                    return;
+
+                        Block barrier = h.getLocation().getBlock();
+                        BlockState barrierState = barrier.getState();
+                        if(barrierState instanceof TileState tile) {
+                            PersistentDataContainer container = tile.getPersistentDataContainer();
+                            for(int i = 0; i < 12; i++) {
+                                if(!container.has(Keys.BARRIER_ADDED_PLAYER_NAMES[i])) {
+                                    LogUtil.warn("kek +" + Keys.BARRIER_ADDED_PLAYER_NAMES[i]);
+                                    container.set(Keys.BARRIER_ADDED_PLAYER_NAMES[i], PersistentDataType.STRING, playerName);
+                                    tile.update();
+                                    break;
+                                }
+                            }
+                        }
+
 
                 }
             }
@@ -315,9 +310,9 @@ public class BarrierEvents extends BaseMechanismEvents {
                         Inventory mainInventory = this.barrierInventory.openMenu(player, mainHolder, energyPercent);
 
                         // 3. Загружаем данные главного меню
-                        if(tile.getPersistentDataContainer().has(Keys.BARRIER_INV_MAIN)) {
-                            MechanismStorage.loadItems(tile, mainInventory, Keys.BARRIER_INV_MAIN);
-                        }
+//                        if(tile.getPersistentDataContainer().has(Keys.BARRIER_INV_MAIN)) {
+//                            MechanismStorage.loadItems(tile, mainInventory, Keys.BARRIER_INV_MAIN);
+//                        }
 
                         // 4. Обновляем энергию
                         this.barrierInventory.updateEnergyBar(mainInventory, mainHolder, energyPercent);

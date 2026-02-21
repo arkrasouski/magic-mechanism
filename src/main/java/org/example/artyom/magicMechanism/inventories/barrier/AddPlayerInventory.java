@@ -1,11 +1,11 @@
 package org.example.artyom.magicMechanism.inventories.barrier;
 
 import org.bukkit.Material;
-import org.bukkit.entity.Item;
+import org.bukkit.NamespacedKey;
+import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActionSlot;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActions;
+import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerListMenuActionSlot;
 import org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerListMenuActions;
 import org.example.artyom.magicMechanism.inventories.BaseFillCustomInventory;
@@ -14,6 +14,7 @@ import org.example.artyom.magicMechanism.utils.ItemsUtil;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class AddPlayerInventory extends BaseFillCustomInventory {
 
@@ -35,6 +36,28 @@ public class AddPlayerInventory extends BaseFillCustomInventory {
             for(int j = 0; j < 8 && j < this.players.size(); j++) {
                 int playerNum = j * (i+1);
                 BarrierPlayerListMenuActionSlot playerFrame = new BarrierPlayerListMenuActionSlot(playerNum);
+                if(holder.getLocation().getBlock().getState() instanceof TileState tile) {
+                    boolean hasData = false ;
+                for(int k = 0; k < 12; k++) {
+                    String namespace = "magic-mechanism";
+                    String key = "barrier_added_player_names" + "_" + k;
+                    NamespacedKey checkKey = new NamespacedKey(namespace, key);
+                    if(tile.getPersistentDataContainer().has(checkKey) &&
+                            Objects.equals(tile.getPersistentDataContainer().get(checkKey, PersistentDataType.STRING), players.get(playerNum))) {
+                        hasData = true;
+                        break;
+                    }
+                }
+
+                if(hasData) {
+                    inv.setItem(playerNum, ItemsUtil.create(Material.LIME_WOOL, 1,
+                           this.players.get(playerNum),
+                            playerFrame.getPdcKey(),
+                            List.of("Игрок добавлен в приват!")));
+                    continue;
+                }
+                }
+
                 inv.setItem(playerNum,
                         ItemsUtil.create(Material.LIGHT_BLUE_WOOL, 1, this.players.get(playerNum),
                                 playerFrame.getPdcKey(), List.of("Нажмите, чтобы добавить", "Игрока в приват")));
