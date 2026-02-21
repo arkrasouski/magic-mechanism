@@ -5,6 +5,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.example.artyom.magicMechanism.utils.LogUtil;
 
 import java.util.List;
 
@@ -31,33 +32,30 @@ public abstract class BaseFillCustomInventory {
     }
 
 
-    public void updateEnergyBar(Inventory top, MechanismHolder h, double percent) {
-        int start = this.size - 9, end = this.size - 1;
+    public static void updateEnergyBar(Inventory top, MechanismHolder h, double percent) {
+        int size = top.getSize(); // ✅ ТОЧНЫЙ размер целевого инвентаря
+        int start = size - 9, end = size - 1;
         int segments = end - start + 1;
         int filled = (int) Math.round(clamp(percent, 0, 100) / 100.0 * segments);
 
+        LogUtil.warn("EnergyBar | size=" + size + " | segments=" + segments + " | filled=" + filled);
+
         for (int i = 0; i < segments; i++) {
             int slot = start + i;
-
             if (i >= filled) {
-                top.setItem(slot, null); // или new ItemStack(Material.AIR)
+                top.setItem(slot, null);
                 continue;
             }
 
-            String id;
-            if (i == 0) id = "mehanisms:transformer_energy_left";
-            else if (i == segments - 1) id = "mehanisms:transformer_energy_right";
-            else id = "mehanisms:transformer_energy_middle";
+            String id = i == 0 ? "mehanisms:transformer_energy_left" :
+                    i == segments - 1 ? "mehanisms:transformer_energy_right" :
+                            "mehanisms:transformer_energy_middle";
 
             CustomStack cs = CustomStack.getInstance(id);
-            if (cs == null) {
-                top.setItem(slot, null); // если IA item не найден — тоже чистим, чтобы не висел старый
-                continue;
-            }
-
-            top.setItem(slot, cs.getItemStack());
-            h.setNewEnergy(percent);
+            top.setItem(slot, cs != null ? cs.getItemStack() : null);
         }
+
+        h.setNewEnergy(percent);
     }
 
     private static double clamp(double v, double min, double max) {

@@ -6,6 +6,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.utils.ItemStackArrayCodec;
+import org.example.artyom.magicMechanism.utils.LogUtil;
 
 import java.io.IOException;
 
@@ -16,7 +17,8 @@ public class MechanismStorage {
 
 
     public static void loadItems(TileState tile, Inventory inv, NamespacedKey key) {
-        System.out.println(key);
+        LogUtil.warn("IN LOAD ITEMS");
+        LogUtil.warn("+"+key);
         String encoded = tile.getPersistentDataContainer().get(key, PersistentDataType.STRING);
         if (encoded == null || encoded.isBlank()) return;
 

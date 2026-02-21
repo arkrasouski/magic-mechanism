@@ -13,6 +13,8 @@ import org.example.artyom.magicMechanism.inventories.barrier.BarrierInventory;
 import org.example.artyom.magicMechanism.inventories.generator.GenInventory;
 import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
+import org.example.artyom.magicMechanism.utils.LogUtil;
+
 public final class MagicMechanism extends JavaPlugin {
 
     private BukkitTask tickAllTask;
@@ -30,7 +32,8 @@ public final class MagicMechanism extends JavaPlugin {
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         GeneratorCellService genService = new GeneratorCellService(guiManager, baseGenInventory);
         GeneratorBarrierService genBarrierService = new GeneratorBarrierService(genService.allGenerators());
-
+        LogUtil.init(this);
+        LogUtil.info("Плагин загружен!");
 
 
         getCommand("getgen").setExecutor(new GeneratorCommands());
