@@ -1,4 +1,4 @@
-package org.example.artyom.magicMechanism.inventories.barrier;
+package org.example.artyom.magicMechanism.inventories.barrier.holders;
 
 import org.bukkit.Location;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;

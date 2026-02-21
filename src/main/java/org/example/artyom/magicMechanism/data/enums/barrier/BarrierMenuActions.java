@@ -1,12 +1,9 @@
 package org.example.artyom.magicMechanism.data.enums.barrier;
 
 import org.example.artyom.magicMechanism.data.enums.MenuAction;
-import org.example.artyom.magicMechanism.data.enums.Screen;
 import org.example.artyom.magicMechanism.data.enums.ScreenCategory;
 
-import java.util.List;
-
-public enum BarrierMenuActions implements Screen, MenuAction {
+public enum BarrierMenuActions implements ScreenCategory, MenuAction {
 
     MAIN_MENU_ADD_PLAYER,
     MAIN_MENU_EDIT_PLAYER;
@@ -34,8 +31,4 @@ public enum BarrierMenuActions implements Screen, MenuAction {
         return "Барьер-меню";
     }
 
-    @Override
-    public List<MenuAction> getActions() {
-        return List.of();
-    }
 }

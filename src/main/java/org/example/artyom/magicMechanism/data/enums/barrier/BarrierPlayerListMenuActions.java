@@ -1,13 +1,14 @@
 package org.example.artyom.magicMechanism.data.enums.barrier;
 
 import org.example.artyom.magicMechanism.data.enums.MenuAction;
-import org.example.artyom.magicMechanism.data.enums.Screen;
 import org.example.artyom.magicMechanism.data.enums.ScreenCategory;
 
-import java.util.List;
-
-public enum BarrierPlayerListMenuActions implements Screen, MenuAction {
-    PLAYER_LIST;
+public enum BarrierPlayerListMenuActions implements ScreenCategory, MenuAction {
+    PAGE,
+    PREVIOUS_PAGE,
+    NEXT_PAGE,
+    RETURN_BACK,
+    PLAYERLIST;
 
 
     @Override
@@ -20,10 +21,6 @@ public enum BarrierPlayerListMenuActions implements Screen, MenuAction {
         return MenuAction.fromString(fullName, BarrierPlayerListMenuActions.class);
     }
 
-    @Override
-    public List<MenuAction> getActions() {
-        return List.of();
-    }
 
     @Override
     public String getDisplayName() {

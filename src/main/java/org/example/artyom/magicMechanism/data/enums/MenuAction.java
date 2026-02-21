@@ -3,10 +3,7 @@ package org.example.artyom.magicMechanism.data.enums;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActionSlot;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActions;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerListMenuActions;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions;
+import org.example.artyom.magicMechanism.data.enums.barrier.*;
 
 public interface MenuAction {
     String getPdcKey();  // "BARRIER_MAIN_MENU_ADD_PLAYER"
@@ -21,12 +18,20 @@ public interface MenuAction {
         if (actionStr == null) return null;
         // Пробуем разные enum по префиксу
         if (actionStr.startsWith("BARRIER_")) {
+            if(actionStr.endsWith("ADD_PLAYER")) {
+                return BarrierMenuActions.fromString(actionStr);
+            }
             try {
-                System.out.println(actionStr);
                 return new BarrierMenuActionSlot(Integer.parseInt(actionStr.split(":")[1]));
             } catch (Exception ignored) {}
         } else if (actionStr.startsWith("PLAYERLIST_")) {
-            return BarrierPlayerListMenuActions.fromString(actionStr);
+            if(actionStr.endsWith("RETURN_BACK")) {
+                return BarrierPlayerListMenuActions.fromString(actionStr);
+            }
+            try {
+                return new BarrierPlayerListMenuActionSlot(Integer.parseInt(actionStr.split(":")[1]));
+            } catch (Exception ignored) {}
+
         }
        else if (actionStr.startsWith("PLAYERSETTINGS_")) {
             return BarrierPlayerSettingsMenuActions.fromString(actionStr);
@@ -39,6 +44,7 @@ public interface MenuAction {
     static <T extends Enum<T> & MenuAction> T fromString(String fullName, Class<T> enumClass) {
         try {
             String simpleName = fullName.split("_", 2)[1]; // убираем BARRIER_
+
             return Enum.valueOf(enumClass, simpleName);
         } catch (IllegalArgumentException e) {
             return null;

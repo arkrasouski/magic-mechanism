@@ -1,12 +1,9 @@
 package org.example.artyom.magicMechanism.data.enums.barrier;
 
 import org.example.artyom.magicMechanism.data.enums.MenuAction;
-import org.example.artyom.magicMechanism.data.enums.Screen;
 import org.example.artyom.magicMechanism.data.enums.ScreenCategory;
 
-import java.util.List;
-
-public enum BarrierPlayerSettingsMenuActions implements Screen, MenuAction {
+public enum BarrierPlayerSettingsMenuActions implements ScreenCategory, MenuAction {
     PLAYER_SETTINGS_ALLOW_CHEST,
     PLAYER_SETTINGS_DENY_CHEST,
     PLAYER_SETTINGS_ALLOW_DAMAGE,
@@ -23,11 +20,6 @@ public enum BarrierPlayerSettingsMenuActions implements Screen, MenuAction {
         return MenuAction.fromString(fullName, BarrierPlayerSettingsMenuActions.class);
     }
 
-
-    @Override
-    public List<MenuAction> getActions() {
-        return List.of();
-    }
 
     @Override
     public String getDisplayName() {

@@ -4,7 +4,6 @@ import org.bukkit.Location;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
-import org.example.artyom.magicMechanism.data.enums.Screen;
 import org.example.artyom.magicMechanism.data.enums.ScreenCategory;
 import org.jetbrains.annotations.NotNull;
 

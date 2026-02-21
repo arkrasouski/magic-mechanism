@@ -22,15 +22,16 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.Keys;
-import org.example.artyom.magicMechanism.data.enums.*;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActionSlot;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActions;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions;
-import org.example.artyom.magicMechanism.data.enums.barrier.BarrierScreenCategory;
-import org.example.artyom.magicMechanism.inventories.*;
-import org.example.artyom.magicMechanism.inventories.barrier.BarrierHolder;
+import org.example.artyom.magicMechanism.data.enums.MechanismType;
+import org.example.artyom.magicMechanism.data.enums.MenuAction;
+import org.example.artyom.magicMechanism.data.enums.barrier.*;
+import org.example.artyom.magicMechanism.inventories.MechanismHolder;
+import org.example.artyom.magicMechanism.inventories.MechanismStorage;
+import org.example.artyom.magicMechanism.inventories.barrier.AddPlayerInventory;
+import org.example.artyom.magicMechanism.inventories.barrier.holders.AddPlayerHolder;
+import org.example.artyom.magicMechanism.inventories.barrier.holders.BarrierHolder;
 import org.example.artyom.magicMechanism.inventories.barrier.BarrierInventory;
-import org.example.artyom.magicMechanism.inventories.barrier.EditPlayerHolder;
+import org.example.artyom.magicMechanism.inventories.barrier.holders.EditPlayerHolder;
 import org.example.artyom.magicMechanism.inventories.barrier.EditPlayerInventory;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.utils.ItemsUtil;
@@ -38,6 +39,8 @@ import org.example.artyom.magicMechanism.utils.LogUtil;
 
 import java.util.List;
 
+import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActions.MAIN_MENU_EDIT_PLAYER;
+import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerListMenuActions.RETURN_BACK;
 import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions.PLAYER_SETTINGS_ALLOW_CHEST;
 import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions.PLAYER_SETTINGS_DENY_CHEST;
 
@@ -88,35 +91,6 @@ public class BarrierEvents extends BaseMechanismEvents {
 
     @EventHandler
     public void onOpen(InventoryOpenEvent e) {
-//        Object holderObj = e.getInventory().getHolder();
-//        System.out.println("=== onOpen DEBUG ===");
-//        System.out.println("Holder: " + (holderObj != null ? holderObj.getClass().getSimpleName() : "null"));
-//        System.out.println("Title: '" + e.getView().getTitle() + "'");
-//        System.out.println("Size: " + e.getInventory().getSize());
-//
-//        if (holderObj instanceof BarrierHolder h) {
-//            System.out.println("✅ BarrierHolder | Category: " + h.getScreenCategory());
-//            Location loc = h.getLocation();
-//            Block b = loc.getBlock();
-//            if (Barrier.isBarrier(b) && b.getState() instanceof TileState tile) {
-//                if (h.getScreenCategory() == BarrierScreenCategory.MAIN_MENU) {
-//                    boolean hasData = tile.getPersistentDataContainer().has(Keys.BARRIER_INV_MAIN);
-//                    System.out.println("MAIN_MENU data exists: " + hasData);
-//                    if (hasData) {
-//                        int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
-//                        double energyPercent = (double) (buf * 100) / mechanism.getCapacity();
-//                        Inventory inv = new BarrierInventory().openMenu((Player) e.getPlayer(), h, energyPercent);
-//                        MechanismStorage.loadItems(tile, inv, Keys.BARRIER_INV_MAIN);
-//
-//                        BaseFillCustomInventory.updateEnergyBar(inv, h, energyPercent);
-//                        System.out.println("✓ Загружено MAIN_MENU");
-//                    }
-//                }
-//            }
-//        } else {
-//            System.out.println("❌ НЕ BarrierHolder: " + holderObj);
-//        }
-
         Object holder = e.getInventory().getHolder();
         LogUtil.info("Открытие: " + holder + " | " + e.getView().getTitle());
     }
@@ -125,19 +99,6 @@ public class BarrierEvents extends BaseMechanismEvents {
     @EventHandler
     public void onClose(InventoryCloseEvent e) {
 
-//        if (!(e.getView().getTopInventory().getHolder() instanceof BarrierHolder h)) return;
-//
-//        BlockState st = h.getLocation().getBlock().getState();
-//        if (st instanceof TileState tile) {
-//            Inventory currentInv = e.getView().getTopInventory();
-//            if (h.getScreenCategory() == BarrierScreenCategory.MAIN_MENU) {
-//                MechanismStorage.saveItems(tile, currentInv, Keys.BARRIER_INV_MAIN
-//                );
-//            }
-//            else if (h.getScreenCategory() == BarrierScreenCategory.PLAYER_SETTINGS && (h instanceof EditPlayerHolder holder)) {
-//                MechanismStorage.saveItems(tile, currentInv, Keys.BARRIER_INV_EDIT_PLAYER[holder.getSlot()]);
-//            }
-//            }
         Object holderObj = e.getView().getTopInventory().getHolder();
         System.out.println("Закрытие: " + (holderObj != null ? holderObj.getClass().getSimpleName() : "null"));
 
@@ -192,13 +153,12 @@ public class BarrierEvents extends BaseMechanismEvents {
         if (stack == null) return;
         MenuAction action = MenuAction.fromPDC(stack, Keys.INVENTORY_ITEM);
         HumanEntity  human = e.getWhoClicked();
-        System.out.println("action" + action);
+
         if(human instanceof Player player) {
             if(action instanceof BarrierMenuActionSlot a) {
-                System.out.println("dadadad" + a);
-                switch (a.action) {
-                    case MAIN_MENU_EDIT_PLAYER -> {
-                        System.out.println("Открываем EditPlayer слот " + a.getSlotPlayer());
+
+                if(a.action == MAIN_MENU_EDIT_PLAYER) {
+
 
                         // 1. СОЗДАЕМ НОВЫЙ инвентарь
                         EditPlayerHolder newHolder = new EditPlayerHolder(
@@ -216,7 +176,7 @@ public class BarrierEvents extends BaseMechanismEvents {
                             NamespacedKey editKey = Keys.BARRIER_INV_EDIT_PLAYER[a.getSlotPlayer() - 1];
                             if(tile.getPersistentDataContainer().has(editKey)){
                                 MechanismStorage.loadItems(tile, newInv, editKey); // ← newInv!!!
-                                System.out.println("Загружено EditPlayer из " + editKey);
+
                                 this.barrierInventory.updateEnergyBar(newInv, newHolder , h.getEnergyPercent());
                             }
                         }
@@ -225,12 +185,23 @@ public class BarrierEvents extends BaseMechanismEvents {
                         return;
 
                     }
-                    default -> {
-                        // для новых enum без кода
-                        System.out.println("Неизвестное действие");
-                    }
+                }
+            else if (action instanceof BarrierMenuActions a) {
+                if(a == BarrierMenuActions.MAIN_MENU_ADD_PLAYER) {
+                    LogUtil.warn("Открываю игроков");
+                    AddPlayerHolder newHolder = new AddPlayerHolder(
+                            h.getLocation(),
+                            MechanismType.BARRIER,
+                            h.getEnergyPercent(),
+                            BarrierScreenCategory.PLAYER_LIST
+                    );
+                    Inventory newInv = new AddPlayerInventory().openMenu(player, newHolder, h.getEnergyPercent());
+                    player.openInventory(newInv);
+                    return;
                 }
             }
+
+
             else if (action instanceof BarrierPlayerSettingsMenuActions a) {
 
                 switch (a) {
@@ -286,9 +257,81 @@ public class BarrierEvents extends BaseMechanismEvents {
                     }
                     default -> {
                         // для новых enum без кода
-                        System.out.println("Неизвестное действие");
+                        LogUtil.warn("Неизвестное действие");
+                    }
+
+                }
+
+            }
+            else if (action instanceof BarrierPlayerListMenuActionSlot a) {
+                if (a.action == BarrierPlayerListMenuActions.PLAYERLIST) {
+                        LogUtil.warn("PLAYER!" + a.getSlotPlayer());
+                        ItemStack clicked = e.getCurrentItem();
+                        e.getInventory().setItem(a.getSlotPlayer(), ItemsUtil.create(Material.LIME_WOOL, 1, clicked.getItemMeta().getDisplayName(),
+                                a.getPdcKey(), List.of("Игрок добавлен в приват!")));
+//                    // 1. СОЗДАЕМ НОВЫЙ инвентарь
+//                    EditPlayerHolder newHolder = new EditPlayerHolder(
+//                            h.getLocation(), MechanismType.BARRIER, h.getEnergyPercent(),
+//                            BarrierScreenCategory.PLAYER_SETTINGS, a.getSlotPlayer()
+//                    );
+//
+//                    Inventory newInv = new EditPlayerInventory().openMenu(player, newHolder, h.getEnergyPercent());
+//
+//                    // 2. Загружаем ТОЛЬКО в НОВЫЙ инвентарь!
+//                    Location loc = h.getLocation();
+//                    Block b = loc.getBlock();
+//                    BlockState bs = b.getState();
+//                    if(bs instanceof TileState tile) {
+//                        NamespacedKey editKey = Keys.BARRIER_INV_EDIT_PLAYER[a.getSlotPlayer() - 1];
+//                        if(tile.getPersistentDataContainer().has(editKey)){
+//                            MechanismStorage.loadItems(tile, newInv, editKey); // ← newInv!!!
+//
+//                            this.barrierInventory.updateEnergyBar(newInv, newHolder , h.getEnergyPercent());
+//                        }
+//                    }
+//
+//                    player.openInventory(newInv);
+//                    return;
+
+                }
+            }
+            else if (action instanceof BarrierPlayerListMenuActions a) {
+                switch (a) {
+                    case RETURN_BACK -> {
+                        LogUtil.info("Возврат в главное меню из " + h.getClass().getSimpleName());
+
+                        // 1. Создаем BarrierHolder для ГЛАВНОГО меню
+                        Location loc = h.getLocation();
+                        Block b = loc.getBlock();
+                        TileState tile = (TileState) b.getState();
+                        int buf = tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+                        double energyPercent = (double) (buf * 100) / mechanism.getCapacity();
+
+                        BarrierHolder mainHolder = new BarrierHolder(
+                                loc, MechanismType.BARRIER, energyPercent, BarrierScreenCategory.MAIN_MENU
+                        );
+
+                        // 2. Используем this.barrierInventory!
+                        Inventory mainInventory = this.barrierInventory.openMenu(player, mainHolder, energyPercent);
+
+                        // 3. Загружаем данные главного меню
+                        if(tile.getPersistentDataContainer().has(Keys.BARRIER_INV_MAIN)) {
+                            MechanismStorage.loadItems(tile, mainInventory, Keys.BARRIER_INV_MAIN);
+                        }
+
+                        // 4. Обновляем энергию
+                        this.barrierInventory.updateEnergyBar(mainInventory, mainHolder, energyPercent);
+
+                        mainHolder.setInventory(mainInventory);
+                        player.openInventory(mainInventory);
+                        return;
                     }
                 }
+            }
+
+            else {
+                LogUtil.warn("Неизвестное действие главного меню барьера");
+
             }
        }
 
