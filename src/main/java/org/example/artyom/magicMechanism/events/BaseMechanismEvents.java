@@ -16,6 +16,8 @@ import org.bukkit.inventory.ItemStack;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.items.BaseMechanismItem;
+import org.example.artyom.magicMechanism.managers.BarrierManager;
+import org.example.artyom.magicMechanism.managers.BaseManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
 import org.example.artyom.magicMechanism.utils.LogUtil;
@@ -23,13 +25,13 @@ import org.example.artyom.magicMechanism.utils.ToolUtil;
 
 public class BaseMechanismEvents implements Listener {
     protected MagicMechanism plugin;
-    protected final GeneratorManager generatorManager;
+    protected final BaseManager mechanismManager;
     //private final BaseMechanism mechanism;
     protected final MechanismType mechanismType;
 
-    public BaseMechanismEvents(MagicMechanism plugin, GeneratorManager generatorManager, MechanismType mechanismType) {
+    public BaseMechanismEvents(MagicMechanism plugin, BaseManager mechanismManager, MechanismType mechanismType) {
         this.plugin = plugin;
-        this.generatorManager = generatorManager;
+        this.mechanismManager= mechanismManager;
         this.mechanismType = mechanismType;
     }
 
@@ -41,8 +43,14 @@ public class BaseMechanismEvents implements Listener {
         // Проверяем, является ли поставленный блок генератором
         if (block.getType() == mechanismType.getMaterial()) {
             // Создаем новый генератор
-            generatorManager.createGenerator(block, player);
-            player.sendMessage("§aГенератор установлен!");
+            if(mechanismManager instanceof GeneratorManager generatorManager) {
+                generatorManager.createGenerator(block, player);
+                player.sendMessage("§aГенератор установлен!");
+            } else if(mechanismManager instanceof BarrierManager barrierManager) {
+                barrierManager.createBarrier(block, player);
+                player.sendMessage("§aБарьер установлен!");
+            }
+
         }
     }
 

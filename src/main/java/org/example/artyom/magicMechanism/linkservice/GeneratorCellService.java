@@ -14,7 +14,6 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.data.records.BlockPosKey;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
-import org.example.artyom.magicMechanism.inventories.BaseFillCustomInventory;
 import org.example.artyom.magicMechanism.inventories.generator.GenInventory;
 import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 import org.example.artyom.magicMechanism.inventories.MechanismStorage;
@@ -151,7 +150,7 @@ public final class GeneratorCellService {
         generator.setEnergyLevel(currentBuffer + energyToTransfer);
 
         // 3. Сохраняем изменения в PDC блока
-        generatorManager.saveGenerator(generator);
+        generatorManager.saveMechanism(generator);
 
         // 4. Обновляем PDC TileState для синхронизации
         PersistentDataContainer pdc = tile.getPersistentDataContainer();

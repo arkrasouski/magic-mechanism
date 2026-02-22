@@ -51,35 +51,35 @@ public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager,
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         Player player = event.getPlayer();
+        if (mechanismManager instanceof GeneratorManager generatorManager) {
+            // Проверяем, является ли сломанный блок генератором
+            if (generatorManager.getGenerator(block) != null) {
+                // Удаляем генератор
+                generatorManager.removeGenerator(block);
 
-        // Проверяем, является ли сломанный блок генератором
-        if (generatorManager.getGenerator(block) != null) {
-            // Удаляем генератор
-            generatorManager.removeGenerator(block);
+                ItemStack tool = player.getInventory().getItemInMainHand();
+                if (!ToolUtil.canBreakWithTool(player, tool)) {
+                    event.setCancelled(true);
+                    player.sendMessage("§c" + mechanismType.getGuiTitle() + " можно сломать только киркой!");
+                    return;
+                }
+                event.getPlayer().sendMessage("§cГенератор разрушен!");
+                // Отменяем обычный дроп
+                event.setDropItems(false);
+                if (block.getState() instanceof Container cont) {
+                    cont.getInventory().clear();
+                    cont.update(true);
+                }
+                // Удаляем блок
+                block.setType(Material.AIR);
 
-            ItemStack tool = player.getInventory().getItemInMainHand();
-            if (!ToolUtil.canBreakWithTool(player, tool)) {
-                event.setCancelled(true);
-                player.sendMessage("§c" + mechanismType.getGuiTitle() + " можно сломать только киркой!");
-                return;
+                // Дропаем предмет генератора
+                ItemStack generatorItem = new GeneratorItem(plugin).createItem(1);
+                //ItemStack mechanismItem = this.mechanismItem.createItem(1); // но с данными блока!
+                block.getWorld().dropItemNaturally(block.getLocation(), generatorItem);
             }
-            event.getPlayer().sendMessage("§cГенератор разрушен!");
-            // Отменяем обычный дроп
-            event.setDropItems(false);
-            if (block.getState() instanceof Container cont) {
-                cont.getInventory().clear();
-                cont.update(true);
-            }
-            // Удаляем блок
-            block.setType(Material.AIR);
-
-            // Дропаем предмет генератора
-            ItemStack generatorItem = new GeneratorItem(plugin).createItem(1);
-            //ItemStack mechanismItem = this.mechanismItem.createItem(1); // но с данными блока!
-            block.getWorld().dropItemNaturally(block.getLocation(), generatorItem);
         }
     }
-
 @EventHandler
 public void onOpen(InventoryOpenEvent e) {
     if (!(e.getInventory().getHolder() instanceof MechanismHolder h)) return;
@@ -108,81 +108,82 @@ public void onClose(InventoryCloseEvent e) {
         Player player = event.getPlayer();
 
         // Проверяем, является ли блок генератором через наш GeneratorManager
-        Generator generator = generatorManager.getGenerator(block);
-        if (generator == null) return;
+        if (mechanismManager instanceof GeneratorManager generatorManager) {
+            Generator generator = generatorManager.getGenerator(block);
+            if (generator == null) return;
 
-        // Отменяем событие, чтобы не открывался ванильный интерфейс
-        event.setCancelled(true);
+            // Отменяем событие, чтобы не открывался ванильный интерфейс
+            event.setCancelled(true);
 
-        // Получаем TileState блока (для Dropper, Furnace и т.д.)
-        if (!(block.getState() instanceof TileState)) {
-            player.sendMessage(ChatColor.RED + "Ошибка: блок не является TileState!");
-            return;
+            // Получаем TileState блока (для Dropper, Furnace и т.д.)
+            if (!(block.getState() instanceof TileState)) {
+                player.sendMessage(ChatColor.RED + "Ошибка: блок не является TileState!");
+                return;
+            }
+
+            TileState tileState = (TileState) block.getState();
+
+            // ===== РАБОТА С НАШИМИ ДАННЫМИ ИЗ PDC =====
+
+            // 1. Получаем буфер (текущую энергию) из PDC блока
+            // Используем генератор из нашего менеджера как основной источник
+            int buffer = generator.getEnergyLevel();
+
+            // Также можем получить из PDC, если нужно проверить синхронизацию
+            int pdcBuffer = tileState.getPersistentDataContainer()
+                    .getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+
+            // Если данные расходятся, синхронизируем
+            if (buffer != pdcBuffer) {
+                plugin.getLogger().warning("Расхождение данных! Буфер: " + buffer + ", PDC: " + pdcBuffer);
+                // Обновляем PDC из нашего генератора
+                tileState.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.INTEGER, buffer);
+                tileState.update();
+            }
+
+            // 2. Получаем частоту из PDC
+            int frequency = generator.getFrequency();
+
+            // 3. Получаем capacity из конфига механизма
+            int capacity = generator.getCapacity();
+
+            // 4. Рассчитываем процент энергии
+            double energyPercent = (double) (buffer * 100) / capacity;
+
+            // 5. Создаем Holder для GUI
+            GeneratorHolder holder = new GeneratorHolder(
+                    block.getLocation(),
+                    MechanismType.GENERATOR,
+                    energyPercent
+            );
+
+            // 6. Создаем или получаем GUI для генератора
+            Inventory gui = genInventory.openMenu(player, holder, energyPercent);
+
+            // 7. Устанавливаем holder'у инвентарь
+            holder.setInventory(gui);
+
+            // 8. Загружаем предметы из PDC в GUI (если есть)
+            // Это нужно, если ваш генератор хранит предметы (как Dropper)
+            if (block.getType() == Material.DROPPER || block.getType() == Material.HOPPER) {
+                MechanismStorage.loadItems(tileState, gui, Keys.KEY_ITEMS);
+            }
+
+            // 9. Открываем GUI игроку
+            player.openInventory(gui);
+
+            // 10. Отправляем информационное сообщение
+            player.sendMessage(ChatColor.YELLOW + "⚡ Генератор ⚡");
+            player.sendMessage(ChatColor.GRAY + "  Энергия: " + formatEnergy(buffer, capacity));
+            player.sendMessage(ChatColor.GRAY + "  Частота: " + frequency);
+            player.sendMessage(ChatColor.GRAY + "  Статус: " + (generator.isActive() ? "§aАктивен" : "§cНеактивен"));
+
+            // 11. Логируем взаимодействие для отладки (можно убрать в продакшене)
+            LogUtil.info("Игрок " + player.getName() + " открыл генератор на " +
+                    block.getX() + ", " + block.getY() + ", " + block.getZ() +
+                    " | Энергия: " + buffer + "/" + capacity);
         }
-
-        TileState tileState = (TileState) block.getState();
-
-        // ===== РАБОТА С НАШИМИ ДАННЫМИ ИЗ PDC =====
-
-        // 1. Получаем буфер (текущую энергию) из PDC блока
-        // Используем генератор из нашего менеджера как основной источник
-        int buffer = generator.getEnergyLevel();
-
-        // Также можем получить из PDC, если нужно проверить синхронизацию
-        int pdcBuffer = tileState.getPersistentDataContainer()
-                .getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
-
-        // Если данные расходятся, синхронизируем
-        if (buffer != pdcBuffer) {
-            plugin.getLogger().warning("Расхождение данных! Буфер: " + buffer + ", PDC: " + pdcBuffer);
-            // Обновляем PDC из нашего генератора
-            tileState.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.INTEGER, buffer);
-            tileState.update();
-        }
-
-        // 2. Получаем частоту из PDC
-        int frequency = generator.getFrequency();
-
-        // 3. Получаем capacity из конфига механизма
-        int capacity = generator.getCapacity();
-
-        // 4. Рассчитываем процент энергии
-        double energyPercent = (double) (buffer * 100) / capacity;
-
-        // 5. Создаем Holder для GUI
-        GeneratorHolder holder = new GeneratorHolder(
-                block.getLocation(),
-                MechanismType.GENERATOR,
-                energyPercent
-        );
-
-        // 6. Создаем или получаем GUI для генератора
-        Inventory gui = genInventory.openMenu(player, holder, energyPercent);
-
-        // 7. Устанавливаем holder'у инвентарь
-        holder.setInventory(gui);
-
-        // 8. Загружаем предметы из PDC в GUI (если есть)
-        // Это нужно, если ваш генератор хранит предметы (как Dropper)
-        if (block.getType() == Material.DROPPER || block.getType() == Material.HOPPER) {
-            MechanismStorage.loadItems(tileState, gui, Keys.KEY_ITEMS);
-        }
-
-        // 9. Открываем GUI игроку
-        player.openInventory(gui);
-
-        // 10. Отправляем информационное сообщение
-        player.sendMessage(ChatColor.YELLOW + "⚡ Генератор ⚡");
-        player.sendMessage(ChatColor.GRAY + "  Энергия: " + formatEnergy(buffer, capacity));
-        player.sendMessage(ChatColor.GRAY + "  Частота: " + frequency);
-        player.sendMessage(ChatColor.GRAY + "  Статус: " + (generator.isActive() ? "§aАктивен" : "§cНеактивен"));
-
-        // 11. Логируем взаимодействие для отладки (можно убрать в продакшене)
-        LogUtil.info("Игрок " + player.getName() + " открыл генератор на " +
-                block.getX() + ", " + block.getY() + ", " + block.getZ() +
-                " | Энергия: " + buffer + "/" + capacity);
     }
-
     /**
      * Форматирует энергию для красивого отображения
      */
@@ -206,6 +207,7 @@ public void onClose(InventoryCloseEvent e) {
         Location loc = holder.getLocation();
         Block block = loc.getBlock();
         BlockState state = block.getState();
+        if(mechanismManager instanceof GeneratorManager generatorManager) {
         Generator generator = generatorManager.getGenerator(block);
         if (generator == null) return;
         int topSize = top.getSize();
@@ -230,6 +232,7 @@ public void onClose(InventoryCloseEvent e) {
             MechanismStorage.saveItems(tile, top, Keys.KEY_ITEMS);
         });
     }
+    }
 //
 //
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -241,6 +244,7 @@ public void onClose(InventoryCloseEvent e) {
         if (e.getAction() != InventoryAction.MOVE_TO_OTHER_INVENTORY) return;
         Location loc = holder.getLocation();
         Block block = loc.getBlock();
+        if(mechanismManager instanceof GeneratorManager generatorManager) {
         Generator generator = generatorManager.getGenerator(block);
         if (generator == null) return;
         int topSize = top.getSize();
@@ -299,6 +303,7 @@ public void onClose(InventoryCloseEvent e) {
                 MechanismStorage.saveItems(tile, topNow, Keys.KEY_ITEMS);
             }
         });
+    }
     }
 //
 //

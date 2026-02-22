@@ -7,21 +7,23 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.energyitems.EnergyCell;
+import org.example.artyom.magicMechanism.items.BarrierItem;
 import org.example.artyom.magicMechanism.items.GeneratorItem;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 //import org.example.artyom.magicMechanism.mechanisms.Barrier;
 //import org.example.artyom.magicMechanism.energyitems.EnergyCell;
+import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.jetbrains.annotations.NotNull;
 
 public class GeneratorCommands implements CommandExecutor {
 
     private final MagicMechanism plugin;
-    private final GeneratorManager generatorManager;
 
-    public GeneratorCommands(MagicMechanism plugin, GeneratorManager generatorManager) {
+
+    public GeneratorCommands(MagicMechanism plugin) {
         this.plugin = plugin;
-        this.generatorManager = generatorManager;
+
     }
     //private final GeneratorManager generatorManager;
 
@@ -47,18 +49,14 @@ public class GeneratorCommands implements CommandExecutor {
                 return true;
             }
         }
-//
-//        if (command.getName().equalsIgnoreCase("getbarrier")) {
-//            System.out.println("kej");
-//            if(commandSender instanceof Player p){
-//                System.out.println("krk lol");
-//                Barrier barrier = new Barrier();
-//                System.out.println("lol");
-//                ItemStack item = barrier.createMechanismItem();
-//                p.getInventory().setItemInMainHand(item);
-//                return true;
-//            }
-//        }
+
+        if (command.getName().equalsIgnoreCase("getbarrier")) {
+            if(commandSender instanceof Player p){
+                ItemStack item = new BarrierItem(plugin).createItem(1);
+                p.getInventory().addItem(item);
+                return true;
+            }
+        }
 
     return true;
 }

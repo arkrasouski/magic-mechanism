@@ -1,7 +1,6 @@
 package org.example.artyom.magicMechanism.managers;
 
 import org.bukkit.Chunk;
-import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -9,24 +8,16 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
-import org.example.artyom.magicMechanism.mechanisms.Generator;
+import org.example.artyom.magicMechanism.mechanisms.Barrier;
 
-import java.util.Collection;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
-public class GeneratorManager extends BaseManager{
-
-    public GeneratorManager(MagicMechanism plugin) {
-        super(plugin, MechanismType.GENERATOR);
+public class BarrierManager extends BaseManager {
+    public BarrierManager(MagicMechanism plugin) {
+        super(plugin, MechanismType.BARRIER);
     }
 
-
-    /**
-     * Загружаем генератор из PDC чанка
-     */
-    public Generator loadGenerator(Block block, Player owner) {
+    public Barrier loadBarrier(Block block, Player owner) {
         Chunk chunk = block.getChunk();
         PersistentDataContainer chunkData = chunk.getPersistentDataContainer();
 
@@ -57,7 +48,7 @@ public class GeneratorManager extends BaseManager{
             } catch (IllegalArgumentException ignored) {}
         }
 
-        return new Generator(block.getLocation(),loadedOwner, energy, maxEnergy, isActive);
+        return new Barrier(block.getLocation(),loadedOwner, energy, maxEnergy, isActive);
     }
 
     /**
@@ -73,30 +64,29 @@ public class GeneratorManager extends BaseManager{
     /**
      * Получаем генератор по блоку
      */
-    public Generator getGenerator(Block block) {
+    public Barrier getBarrier(Block block) {
         // Сначала проверяем кэш
-        Generator generator = (Generator) activeMechanisms.get(block.getLocation());
-        if (generator != null) {
-            return generator;
+        Barrier barrier = (Barrier) activeMechanisms.get(block.getLocation());
+        if (barrier != null) {
+            return barrier;
         }
 
         // Если нет в кэше, пробуем загрузить
-        generator = loadGenerator(block, null);
-        if (generator != null) {
-            activeMechanisms.put(block.getLocation(), generator);
+        barrier = loadBarrier(block, null);
+        if (barrier != null) {
+            activeMechanisms.put(block.getLocation(), barrier);
         }
 
-        return generator;
+        return barrier;
     }
 
     /**
      * Создаем новый генератор
      */
-    public void createGenerator(Block block, Player owner) {
-        Generator generator = new Generator(block.getLocation(), owner);
-        saveMechanism(generator);
+    public void createBarrier(Block block, Player owner) {
+        Barrier barrier = new Barrier(block.getLocation(), owner);
+        saveMechanism(barrier);
     }
-
 
 
 }

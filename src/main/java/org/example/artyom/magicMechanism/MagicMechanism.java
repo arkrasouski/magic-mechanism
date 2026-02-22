@@ -10,12 +10,14 @@ import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.database.DatabaseManager;
 //import org.example.artyom.magicMechanism.events.BarrierEvents;
 //import org.example.artyom.magicMechanism.events.GeneratorEvents;
+import org.example.artyom.magicMechanism.events.BarrierEvents;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
 import org.example.artyom.magicMechanism.inventories.barrier.BarrierInventory;
 import org.example.artyom.magicMechanism.inventories.generator.GenInventory;
 //import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 //import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
+import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
@@ -52,16 +54,17 @@ public final class MagicMechanism extends JavaPlugin {
         BarrierInventory barrierInventory = new BarrierInventory();
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         GeneratorCellService genService = new GeneratorCellService(guiManager, genManager);
+        BarrierManager barrierManager = new BarrierManager(this);
       //  GeneratorBarrierService genBarrierService = new GeneratorBarrierService(genService.allGenerators());
 
 
 
-        getCommand("getgen").setExecutor(new GeneratorCommands(this, genManager));
-        getCommand("givecell").setExecutor(new GeneratorCommands(this, genManager));
-//        getCommand("getbarrier").setExecutor(new GeneratorCommands());
+        getCommand("getgen").setExecutor(new GeneratorCommands(this));
+        getCommand("givecell").setExecutor(new GeneratorCommands(this));
+        getCommand("getbarrier").setExecutor(new GeneratorCommands(this));
 
         Bukkit.getPluginManager().registerEvents(new GeneratorEvents(this, genManager, guiManager), this);
-      //  Bukkit.getPluginManager().registerEvents(new BarrierEvents(databaseManager, barrierInventory), this);
+        Bukkit.getPluginManager().registerEvents(new BarrierEvents(this, barrierManager, databaseManager), this);
 
         this.tickAllTask = Bukkit.getScheduler().runTaskTimer(
                 this,
