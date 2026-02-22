@@ -5,7 +5,6 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
-import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 
@@ -26,6 +25,7 @@ import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.data.enums.MenuAction;
 import org.example.artyom.magicMechanism.data.enums.barrier.*;
+import org.example.artyom.magicMechanism.database.DatabaseManager;
 import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 import org.example.artyom.magicMechanism.inventories.MechanismStorage;
 import org.example.artyom.magicMechanism.inventories.barrier.AddPlayerInventory;
@@ -38,10 +38,15 @@ import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.utils.ItemsUtil;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierMenuActions.MAIN_MENU_EDIT_PLAYER;
-import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerListMenuActions.RETURN_BACK;
 import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions.PLAYER_SETTINGS_ALLOW_CHEST;
 import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions.PLAYER_SETTINGS_DENY_CHEST;
 
@@ -49,9 +54,10 @@ import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayer
 public class BarrierEvents extends BaseMechanismEvents {
 
     BarrierInventory barrierInventory;
-
-    public BarrierEvents(BarrierInventory barrierInventory) {
+    DatabaseManager databaseManager;
+    public BarrierEvents(DatabaseManager db, BarrierInventory barrierInventory) {
         super(new Barrier());
+        this.databaseManager = db;
         this.barrierInventory = barrierInventory;
     }
     @EventHandler(ignoreCancelled = true)
@@ -101,7 +107,6 @@ public class BarrierEvents extends BaseMechanismEvents {
     public void onClose(InventoryCloseEvent e) {
 
         Object holderObj = e.getView().getTopInventory().getHolder();
-        System.out.println("Закрытие: " + (holderObj != null ? holderObj.getClass().getSimpleName() : "null"));
 
         BlockState st = null;
         NamespacedKey saveKey = null;
@@ -117,10 +122,8 @@ public class BarrierEvents extends BaseMechanismEvents {
 
 
         if (st instanceof TileState tile && saveKey != null) {
-            System.out.println("Сохраняем под ключом: " + saveKey);
+
             MechanismStorage.saveItems(tile, e.getView().getTopInventory(), saveKey);
-        } else {
-            System.out.println("НЕ сохраняем: st=" + (st != null) + ", key=" + saveKey);
         }
     }
 
@@ -161,18 +164,21 @@ public class BarrierEvents extends BaseMechanismEvents {
     }
 
     private void handleBarrierMenuAction(InventoryClickEvent e, Player player, MechanismHolder h, MenuAction action) {
+        LogUtil.warn(action.toString());
         switch (action) {
             case BarrierMenuActionSlot slotAction when slotAction.action == MAIN_MENU_EDIT_PLAYER ->
                     openEditPlayerMenu(e, player, h, (BarrierMenuActionSlot) action);
 
             case BarrierMenuActions addPlayer when addPlayer == BarrierMenuActions.MAIN_MENU_ADD_PLAYER ->
-                    openAddPlayerMenu(player, h);
+                    openAddPlayerMenu(player, h, 1);
 
             case BarrierPlayerSettingsMenuActions settings -> handlePlayerSettings(e, player, h, settings);
 
             case BarrierPlayerListMenuActionSlot listSlot when listSlot.action == BarrierPlayerListMenuActions.PLAYERLIST ->
                     addPlayerToBarrier(e, player, h, (BarrierPlayerListMenuActionSlot) action);
 
+            case BarrierPlayerListMenuActions.PREVIOUS_PAGE -> openAddPlayerMenu(player, h, Integer.parseInt(e.getCurrentItem().getItemMeta().getDisplayName().split(" ")[1]));
+            case BarrierPlayerListMenuActions.NEXT_PAGE -> openAddPlayerMenu(player, h, Integer.parseInt(e.getCurrentItem().getItemMeta().getDisplayName().split(" ")[1]));
             case BarrierPlayerListMenuActions.RETURN_BACK -> openMainMenu(player, h);
 
             default -> LogUtil.warn("Неизвестное действие: " + action);
@@ -202,11 +208,29 @@ public class BarrierEvents extends BaseMechanismEvents {
         player.openInventory(newInv);
     }
 
-    private void openAddPlayerMenu(Player player, MechanismHolder h) {
+    private void openAddPlayerMenu(Player player, MechanismHolder h, int page) {
+        LogUtil.warn("_" + page);
         AddPlayerHolder newHolder = new AddPlayerHolder(
                 h.getLocation(), MechanismType.BARRIER, h.getEnergyPercent(), BarrierScreenCategory.PLAYER_LIST
         );
-        Inventory newInv = new AddPlayerInventory().openMenu(player, newHolder, h.getEnergyPercent());
+        ArrayList<String> playerNames = new ArrayList<>();
+        String sql = String.format("""
+            SELECT name FROM Players
+            ORDER BY name ASC
+            OFFSET %d ROWS FETCH FIRST 16 ROWS ONLY;
+        """, 16 * (page - 1));
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    playerNames.add(rs.getString("name"));
+                }
+            }
+        } catch (SQLException e) {
+            LogUtil.error("Ошибка получения игроков", e);
+
+        }
+        Inventory newInv = new AddPlayerInventory(page, playerNames).openMenu(player, newHolder, h.getEnergyPercent());
         player.openInventory(newInv);
     }
 
@@ -267,7 +291,8 @@ public class BarrierEvents extends BaseMechanismEvents {
         if(clicked.getType() == Material.LIME_WOOL && clicked.hasItemMeta()) {
             return;
         }
-        e.getInventory().setItem(action.getSlotPlayer(),
+
+        e.getInventory().setItem(e.getSlot(),
                 ItemsUtil.create(Material.LIME_WOOL, 1, playerName,
                         action.getPdcKey(), List.of("Игрок добавлен в приват!")));
 

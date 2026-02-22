@@ -21,9 +21,10 @@ public class AddPlayerInventory extends BaseFillCustomInventory {
     List<String> players = new ArrayList<>();
     int page = 1;
 
-    public AddPlayerInventory() {
+    public AddPlayerInventory(int page, ArrayList<String> players) {
         super(36, "add player", null);
-        this.players = List.of("player1", "player2", "player3", "Florion2020");
+        this.players = players;
+        this.page = page;
     }
 
     @Override
@@ -33,8 +34,9 @@ public class AddPlayerInventory extends BaseFillCustomInventory {
 
         for (int i = 0; i < 2; i++) {
 
-            for(int j = 0; j < 8 && j < this.players.size(); j++) {
+            for(int j = 0; j < this.players.size() && j < 7 ; j++) {
                 int playerNum = j * (i+1);
+                int slot = j + i * 9;
                 BarrierPlayerListMenuActionSlot playerFrame = new BarrierPlayerListMenuActionSlot(playerNum);
                 if(holder.getLocation().getBlock().getState() instanceof TileState tile) {
                     boolean hasData = false ;
@@ -50,7 +52,7 @@ public class AddPlayerInventory extends BaseFillCustomInventory {
                 }
 
                 if(hasData) {
-                    inv.setItem(playerNum, ItemsUtil.create(Material.LIME_WOOL, 1,
+                    inv.setItem(slot, ItemsUtil.create(Material.LIME_WOOL, 1,
                            this.players.get(playerNum),
                             playerFrame.getPdcKey(),
                             List.of("Игрок добавлен в приват!")));
@@ -58,17 +60,21 @@ public class AddPlayerInventory extends BaseFillCustomInventory {
                 }
                 }
 
-                inv.setItem(playerNum,
+                inv.setItem(slot,
                         ItemsUtil.create(Material.LIGHT_BLUE_WOOL, 1, this.players.get(playerNum),
                                 playerFrame.getPdcKey(), List.of("Нажмите, чтобы добавить", "Игрока в приват")));
             }
-            if(this.players.size() < 8) break;
+            if(this.players.size() < 7) break;
         }
         inv.setItem(8, ItemsUtil.create(Material.OAK_DOOR, 1, "На главную", BarrierPlayerListMenuActions.RETURN_BACK.getPdcKey(), List.of("Вернуться в главное меню")));
-        inv.setItem(18, ItemsUtil.create(Material.YELLOW_WOOL, 1, "Предыдущая страница", BarrierPlayerListMenuActions.PREVIOUS_PAGE.getPdcKey(), List.of("Нажмите, чтобы", "Перелистнуть назад")));
+        if(this.page > 1) {
+            inv.setItem(18, ItemsUtil.create(Material.YELLOW_WOOL, 1, String.format("Страница %d", this.page-1), BarrierPlayerListMenuActions.PREVIOUS_PAGE.getPdcKey(), List.of("Нажмите, чтобы", "Перелистнуть назад")));
+        }
         inv.setItem(22, ItemsUtil.create(Material.PAPER, 1, "Страница № " + this.page, BarrierPlayerListMenuActions.PAGE.getPdcKey()));
-        inv.setItem(26, ItemsUtil.create(Material.ORANGE_WOOL, 1, "Следующая страница", BarrierPlayerListMenuActions.NEXT_PAGE.getPdcKey(), List.of("Нажмите, чтобы", "Перелистнуть вперед")));
 
+        if(this.players.size() == 16) {
+            inv.setItem(26, ItemsUtil.create(Material.ORANGE_WOOL, 1, String.format("Страница %d", this.page+1), BarrierPlayerListMenuActions.NEXT_PAGE.getPdcKey(), List.of("Нажмите, чтобы", "Перелистнуть вперед")));
+        }
 
 
 

@@ -25,7 +25,7 @@ public final class MagicMechanism extends JavaPlugin {
     private BukkitTask tickGuiTask;
     private BukkitTask tickBarrierTask;
     private static MagicMechanism instance;
-
+    private DatabaseManager databaseManager;
 
 
     @Override
@@ -43,14 +43,14 @@ public final class MagicMechanism extends JavaPlugin {
         String password = getConfig().getString("database.password",
                 System.getenv("MYSQL_PASSWORD") != null ? System.getenv("MYSQL_PASSWORD") : "default");
         getLogger().info("Attempting to connect with password: " + password);
-        DatabaseManager databaseManager = new DatabaseManager("localhost", 3306, "minecraft", "spigot", password);//"spig0tDBpass!");
-        try (Connection conn = databaseManager.getConnection()) {
-            LogUtil.warn("БД подключена!");
-            // работа с БД
-        } // автоматически вернётся в пул
-        catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        databaseManager = new DatabaseManager("localhost", 3306, "minecraft", "spigot", password);//"spig0tDBpass!");
+//        try (Connection conn = databaseManager.getConnection()) {
+//            LogUtil.warn("БД подключена!");
+//            // работа с БД
+//        } // автоматически вернётся в пул
+//        catch (SQLException e) {
+//            throw new RuntimeException(e);
+//        }
 
 
         GenInventory baseGenInventory = new GenInventory();
@@ -66,7 +66,7 @@ public final class MagicMechanism extends JavaPlugin {
         getCommand("getbarrier").setExecutor(new GeneratorCommands());
 
         Bukkit.getPluginManager().registerEvents(new GeneratorEvents(guiManager, genService, baseGenInventory), this);
-        Bukkit.getPluginManager().registerEvents(new BarrierEvents(barrierInventory), this);
+        Bukkit.getPluginManager().registerEvents(new BarrierEvents(databaseManager, barrierInventory), this);
 
         this.tickAllTask = Bukkit.getScheduler().runTaskTimer(
                 this,
@@ -95,6 +95,9 @@ public final class MagicMechanism extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (databaseManager != null) {
+            databaseManager.close();
+        }
         if (tickAllTask != null) tickAllTask.cancel();
         if (tickGuiTask != null) tickGuiTask.cancel();
         if (tickBarrierTask != null) tickBarrierTask.cancel();

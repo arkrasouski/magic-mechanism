@@ -14,7 +14,6 @@ public interface MenuAction {
         String actionStr = item.getItemMeta()
                 .getPersistentDataContainer()
                 .get(key, PersistentDataType.STRING);
-        System.out.println(actionStr);
         if (actionStr == null) return null;
         // Пробуем разные enum по префиксу
         if (actionStr.startsWith("BARRIER_")) {
@@ -25,7 +24,7 @@ public interface MenuAction {
                 return new BarrierMenuActionSlot(Integer.parseInt(actionStr.split(":")[1]));
             } catch (Exception ignored) {}
         } else if (actionStr.startsWith("PLAYERLIST_")) {
-            if(actionStr.endsWith("RETURN_BACK")) {
+            if(actionStr.endsWith("RETURN_BACK") || actionStr.endsWith("NEXT_PAGE") || actionStr.endsWith("PREVIOUS_PAGE")) {
                 return BarrierPlayerListMenuActions.fromString(actionStr);
             }
             try {
