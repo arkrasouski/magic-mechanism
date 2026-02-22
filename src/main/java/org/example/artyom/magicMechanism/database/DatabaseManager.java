@@ -1,81 +1,45 @@
 package org.example.artyom.magicMechanism.database;
 
-import org.bukkit.Bukkit;
-import org.bukkit.World;
-import org.bukkit.plugin.java.JavaPlugin;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.example.artyom.magicMechanism.utils.LogUtil;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+
+
 
 public class DatabaseManager {
-    private final JavaPlugin plugin;
-    private final String url;
-    private final String user;
-    private final String password;
+    private HikariDataSource dataSource;
 
-    // Простой пул из 5 соединений
-    private final BlockingQueue<Connection> connectionPool = new LinkedBlockingQueue<>(5);
+    public DatabaseManager( String host, int port, String database, String user, String password) {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:mariadb://" + host + ":" + port + "/" + database);
+        config.setUsername(user);
+        config.setPassword(password);
+        config.setDriverClassName("org.mariadb.jdbc.Driver");
+        // Настройки пула
+        config.setMaximumPoolSize(10);          // максимум соединений в пуле
+        config.setMinimumIdle(5);                // минимум idle соединений
+        config.setConnectionTimeout(30000);      // таймаут получения соединения (мс)
+        config.setIdleTimeout(600000);           // таймаут idle соединения (мс)
+        config.setMaxLifetime(1800000);          // макс. время жизни соединения (мс)
 
-    public DatabaseManager(JavaPlugin plugin, String host, int port, String db,
-                           String user, String pass) {
-        this.plugin = plugin;
-        try {
-            Class.forName("org.mariadb.jdbc.Driver");
-        } catch (ClassNotFoundException e) {
-            plugin.getLogger().severe("MariaDB Driver not found!");
-        }
+        // Дополнительные параметры
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
 
-        this.url = "jdbc:mariadb://" + host + ":" + port + "/" + db + "?useSSL=false&autoReconnect=true";
-        this.user = user;
-        this.password = pass;
-
-
-        initPool();
-    }
-
-    private void initPool() {
-        for (int i = 0; i < 5; i++) {
-            try {
-                connectionPool.offer(createConnection());
-            } catch (SQLException e) {
-                plugin.getLogger().severe("Не удалось создать соединение #" + i);
-            }
-        }
-    }
-
-    private Connection createConnection() throws SQLException {
-        return DriverManager.getConnection(url, user, password);
+        dataSource = new HikariDataSource(config);
+        LogUtil.info("Пул соединений HikariCP инициализирован");
     }
 
     public Connection getConnection() throws SQLException {
-        try {
-            // Берем из пула или ждем 5 сек
-            Connection conn = connectionPool.poll(5, TimeUnit.SECONDS);
-            if (conn == null || conn.isClosed()) {
-                return createConnection();
-            }
-            return conn;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new SQLException("Прерывание получения соединения");
-        }
+        return dataSource.getConnection();  // получаем соединение из пула
     }
-
-    public void releaseConnection(Connection conn) throws SQLException {
-        if (conn != null && !conn.isClosed()) {
-            try {
-                connectionPool.offer(conn);
-            } catch (Exception e) {
-                try { conn.close(); } catch (Exception ignored) {}
-            }
-        }
-    }
-
 
     public void close() {
-        connectionPool.clear();
+        if (dataSource != null) {
+            dataSource.close();  // закрываем все соединения при выключении
+        }
     }
 }

@@ -27,6 +27,7 @@ public final class MagicMechanism extends JavaPlugin {
     private static MagicMechanism instance;
 
 
+
     @Override
     public void onEnable() {
 
@@ -42,11 +43,12 @@ public final class MagicMechanism extends JavaPlugin {
         String password = getConfig().getString("database.password",
                 System.getenv("MYSQL_PASSWORD") != null ? System.getenv("MYSQL_PASSWORD") : "default");
         getLogger().info("Attempting to connect with password: " + password);
-        DatabaseManager db = new DatabaseManager(this, "localhost", 3306, "minecraft", "spigot", password);//"spig0tDBpass!");
-        try {
-            Connection conn = db.getConnection();
-            LogUtil.info("Connected to the database");
-        } catch (SQLException e) {
+        DatabaseManager databaseManager = new DatabaseManager("localhost", 3306, "minecraft", "spigot", password);//"spig0tDBpass!");
+        try (Connection conn = databaseManager.getConnection()) {
+            LogUtil.warn("БД подключена!");
+            // работа с БД
+        } // автоматически вернётся в пул
+        catch (SQLException e) {
             throw new RuntimeException(e);
         }
 

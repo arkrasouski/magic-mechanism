@@ -20,6 +20,7 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.4-R0.1-SNAPSHOT")
     compileOnly "dev.lone:api-itemsadder:4.0.10"
     implementation("org.mariadb.jdbc:mariadb-java-client:3.4.1")
+    implementation 'com.zaxxer:HikariCP:5.1.0'  // HikariCP
 }
 
 tasks {

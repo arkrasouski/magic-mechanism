@@ -38,8 +38,6 @@ public abstract class BaseFillCustomInventory {
         int segments = end - start + 1;
         int filled = (int) Math.round(clamp(percent, 0, 100) / 100.0 * segments);
 
-        LogUtil.warn("EnergyBar | size=" + size + " | segments=" + segments + " | filled=" + filled);
-
         for (int i = 0; i < segments; i++) {
             int slot = start + i;
             if (i >= filled) {
