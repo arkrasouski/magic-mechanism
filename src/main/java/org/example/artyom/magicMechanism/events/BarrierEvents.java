@@ -336,13 +336,16 @@ public class BarrierEvents extends BaseMechanismEvents {
 
     @EventHandler
     public void onClickPlayerSettingsBtns(InventoryClickEvent e) {
-        e.setCancelled(true); // Всегда отменяем!
+
 
         Inventory top = e.getView().getTopInventory();
         if (!(top.getHolder() instanceof MechanismHolder h)) return;
+        Location loc = h.getLocation();
+        Block b = loc.getBlock();
 
+        if(!Barrier.isBarrier(b)) return;
         ItemStack stack = e.getCurrentItem();
-        if (stack == null) return;
+        if (stack == null || !stack.hasItemMeta()) return;
 
         MenuAction action = MenuAction.fromPDC(stack, Keys.INVENTORY_ITEM);
         if (!(e.getWhoClicked() instanceof Player player)) return;
