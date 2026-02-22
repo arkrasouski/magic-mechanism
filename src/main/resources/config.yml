@@ -1,0 +1,6 @@
+database:
+  host: mariadb
+  port: 3306
+  database: minecraft
+  username: spigot
+  password: ${MYSQL_PASSWORD}  # Переменная окружения

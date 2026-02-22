@@ -7,6 +7,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.example.artyom.magicMechanism.commands.GeneratorCommands;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.data.Keys;
+import org.example.artyom.magicMechanism.database.DatabaseManager;
 import org.example.artyom.magicMechanism.events.BarrierEvents;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
 import org.example.artyom.magicMechanism.inventories.barrier.BarrierInventory;
@@ -15,6 +16,9 @@ import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 public final class MagicMechanism extends JavaPlugin {
 
     private BukkitTask tickAllTask;
@@ -22,18 +26,37 @@ public final class MagicMechanism extends JavaPlugin {
     private BukkitTask tickBarrierTask;
     private static MagicMechanism instance;
 
+
     @Override
     public void onEnable() {
+
+        // Сохраняем конфиг по умолчанию из resources
+        saveDefaultConfig();
+        // Перезагружаем конфиг (на всякий случай)
+        reloadConfig();
         // Plugin startup logic
         instance = this;
         Keys.init(this);
+        LogUtil.init(this);
+        LogUtil.info("Плагин загружен!");
+        String password = getConfig().getString("database.password",
+                System.getenv("MYSQL_PASSWORD") != null ? System.getenv("MYSQL_PASSWORD") : "default");
+        getLogger().info("Attempting to connect with password: " + password);
+        DatabaseManager db = new DatabaseManager(this, "localhost", 3306, "minecraft", "spigot", password);//"spig0tDBpass!");
+        try {
+            Connection conn = db.getConnection();
+            LogUtil.info("Connected to the database");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+
         GenInventory baseGenInventory = new GenInventory();
         BarrierInventory barrierInventory = new BarrierInventory();
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         GeneratorCellService genService = new GeneratorCellService(guiManager, baseGenInventory);
         GeneratorBarrierService genBarrierService = new GeneratorBarrierService(genService.allGenerators());
-        LogUtil.init(this);
-        LogUtil.info("Плагин загружен!");
+
 
 
         getCommand("getgen").setExecutor(new GeneratorCommands());
