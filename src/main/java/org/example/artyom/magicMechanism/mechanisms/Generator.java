@@ -27,6 +27,25 @@ public class Generator extends BaseMechanism {
                 frequency, frequencySpeed);
     }
 
+//    public void generateEnergy() {
+//        if (!isActive) return;
+//
+//        if (energyLevel < capacity) {
+//            energyLevel += 1; // генерируем 1 энергии за тик
+//            if (energyLevel > capacity) {
+//                energyLevel = capacity;
+//            }
+//        }
+//    }
+
+    // Передаем энергию потребителю
+    public int transferEnergy(int requested) {
+        //if (!isActive || energyLevel <= 0) return 0;
+
+        int transferred = Math.min(energyLevel, requested);
+        energyLevel -= transferred;
+        return transferred;
+    }
 
     static final BlockFace[] FACES_6 = {
             BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN

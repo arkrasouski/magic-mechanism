@@ -70,9 +70,9 @@ public class BarrierEvents extends BaseMechanismEvents {
         if (clicked == null) return;
         if(mechanismManager instanceof BarrierManager barrierManager) {
             Barrier barrier = barrierManager.getBarrier(clicked);
-            LogUtil.warn("2");
+
         if (barrier != null) {
-            LogUtil.warn("tut");
+
             e.setCancelled(true);
             TileState tile = (TileState) clicked.getState();
             PersistentDataContainer container = tile.getPersistentDataContainer();

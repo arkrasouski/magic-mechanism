@@ -19,7 +19,9 @@ import org.example.artyom.magicMechanism.items.BaseMechanismItem;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.BaseManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
+import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
+import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 import org.example.artyom.magicMechanism.utils.ToolUtil;
 
@@ -45,10 +47,15 @@ public class BaseMechanismEvents implements Listener {
             // Создаем новый генератор
             if(mechanismManager instanceof GeneratorManager generatorManager) {
                 generatorManager.createGenerator(block, player);
+                Generator generator = generatorManager.getGenerator(block);
+                generator.setMechanismBlock(block);
                 player.sendMessage("§aГенератор установлен!");
             } else if(mechanismManager instanceof BarrierManager barrierManager) {
                 barrierManager.createBarrier(block, player);
+                Barrier barrier = barrierManager.getBarrier(block);
+                barrier.setMechanismBlock(block);
                 player.sendMessage("§aБарьер установлен!");
+
             }
 
         }

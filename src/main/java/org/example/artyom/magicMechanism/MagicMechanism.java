@@ -16,9 +16,12 @@ import org.example.artyom.magicMechanism.inventories.barrier.BarrierInventory;
 import org.example.artyom.magicMechanism.inventories.generator.GenInventory;
 //import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 //import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
+import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
+import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
+import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
 import java.sql.Connection;
@@ -31,8 +34,8 @@ public final class MagicMechanism extends JavaPlugin {
     private BukkitTask tickBarrierTask;
     private static MagicMechanism instance;
     private DatabaseManager databaseManager;
-
-
+    private GeneratorBarrierService energyTicker;
+    private GeneratorManager genManager;
     @Override
     public void onEnable() {
 
@@ -49,13 +52,11 @@ public final class MagicMechanism extends JavaPlugin {
                 System.getenv("MYSQL_PASSWORD") != null ? System.getenv("MYSQL_PASSWORD") : "default");
         getLogger().info("Attempting to connect with password: " + password);
         databaseManager = new DatabaseManager("localhost", 3306, "minecraft", "spigot", password);//"spig0tDBpass!");
-        GeneratorManager genManager = new GeneratorManager(this);
-        GenInventory baseGenInventory = new GenInventory();
-        BarrierInventory barrierInventory = new BarrierInventory();
+        genManager = new GeneratorManager(this);
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         GeneratorCellService genService = new GeneratorCellService(guiManager, genManager);
         BarrierManager barrierManager = new BarrierManager(this);
-      //  GeneratorBarrierService genBarrierService = new GeneratorBarrierService(genService.allGenerators());
+        GeneratorBarrierService genBarrierService = new GeneratorBarrierService(this, genManager, barrierManager);
 
 
 
@@ -84,10 +85,8 @@ public final class MagicMechanism extends JavaPlugin {
                     }
                 }, 20L, 20L
         );
-//        this.tickBarrierTask = Bukkit.getScheduler().runTaskTimer(
-//                this,
-//                genBarrierService::tickEnergybarrierGenerator, 1L, 20L
-//        );
+        energyTicker = new GeneratorBarrierService(this, genManager, barrierManager);
+        energyTicker.runTaskTimer(this, 20L, 20L);
 
     }
 
@@ -99,7 +98,15 @@ public final class MagicMechanism extends JavaPlugin {
         if (tickAllTask != null) tickAllTask.cancel();
         if (tickGuiTask != null) tickGuiTask.cancel();
         if (tickBarrierTask != null) tickBarrierTask.cancel();
+        if (genManager != null) {
+            for (BaseMechanism generator : genManager.getAllMechanisms()) {
+                genManager.saveMechanism(generator);
+            }
+        }
+
+        getLogger().info("Плагин генераторов выключен!");
     }
+
 
     public static MagicMechanism getInstance() {
         return instance;
