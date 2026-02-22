@@ -1,108 +1,47 @@
 package org.example.artyom.magicMechanism.mechanisms;
 
-import org.bukkit.Material;
+import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.data.Keys;
-
-import java.util.Arrays;
+import org.example.artyom.magicMechanism.data.enums.MechanismType;
 
 public abstract class BaseMechanism {
 
-    private Material material;
-
-    public String getName() {
-        return name;
-    }
-
-    private String name;
-
-    public String getKey_type() {
-        return key_type;
-    }
-
-    // NamespacedKey key;
-    private String key_type;
-    private String lore;
-
-    public int getCapacity() {
-        return capacity;
-    }
-
-    public int getFrequency() {
-        return frequency;
-    }
-
-    public String getLore() {
-        return lore;
-    }
-
-    public Material getMaterial() {
-        return material;
-    }
-
+    private final Location location;
+    private MechanismType mechanismType;
+    private Player owner;
+    private boolean isActive;
+    private int energyLevel;
     private int capacity;
     private int frequency;
     private int freqSpeed;
-    public BaseMechanism(Material material, String name,
-                             //NamespacedKey key,
-                             String key_type, String lore,
-                             int capacity, int frequency, int freqSpeed) {
-        this.material = material;
-        this.name = name;
-        //this.key = key;
-        this.key_type = key_type;
-        this.lore = lore;
+
+    public BaseMechanism(Location location,
+                         MechanismType mechanismType, Player owner, boolean isActive, int energyLevel,
+                         int capacity, int frequency, int freqSpeed) {
+        this.location = location;
+        this.mechanismType = mechanismType;
+        this.owner = owner;
+        this.isActive = isActive;
+        this.energyLevel = energyLevel;
         this.capacity = capacity;
         this.frequency = frequency;
         this.freqSpeed = freqSpeed;
     }
 
-    public ItemStack createMechanismItem() {
-        ItemStack item = new ItemStack(this.material, 1);
-        ItemMeta meta = item.getItemMeta();
-        System.out.println("Lol");
-        meta.setDisplayName("§b" + this.name);
-        meta.getPersistentDataContainer().set(
-                Keys.MACHINE_TYPE,
-                PersistentDataType.STRING,
-                this.key_type
-        );
-        //meta.setCustomModelData(1001);
-        meta.setLore(Arrays.asList(this.lore));
-        item.setItemMeta(meta);
-        System.out.println(this.lore);
-        return item;
-    }
 
-    public boolean isMechanismItem(ItemStack item){
-        if (item == null) return false;
-
-        if(item.getType() != this.material) return false;
-        // Проверяем базовый тип блока
-
-        ItemMeta meta = item.getItemMeta();
-
-        // Проверяем, что блок поддерживает PDC
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-
-        // Проверяем наш ключ
-        String type = pdc.get(Keys.MACHINE_TYPE, PersistentDataType.STRING);
-
-        return this.key_type.equals(type);
-    }
 
     public void setMechanismBlock(Block block) {
         if (block == null) return;
 
         // Убеждаемся, что это нужный базовый блок
-        if (block.getType() != this.material) return; {
-            block.setType(this.material);
+        if (block.getType() != this.mechanismType.getMaterial()) return; {
+            block.setType(this.mechanismType.getMaterial());
         }
 
         BlockState state = block.getState();
@@ -113,17 +52,11 @@ public abstract class BaseMechanism {
         pdc.set(
                 Keys.MACHINE_TYPE,
                 PersistentDataType.STRING,
-                this.key_type
+                this.mechanismType.name()
         );
         pdc.set(Keys.BUFFER,  PersistentDataType.INTEGER, 0);
         pdc.set(Keys.CAPACITY, PersistentDataType.INTEGER, this.capacity);
         pdc.set(Keys.FREQ, PersistentDataType.INTEGER, this.frequency);
-
-        //Location loc = block.getLocation().add(0.5, 0, 0.5);
-        //ItemDisplay display = (ItemDisplay) block.getWorld().spawnEntity(loc, EntityType.ITEM_DISPLAY);
-        //display.setItemStack(GeneratorUtil.createGenerator()); // с CustomModelData
-        //display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-        //display.setBrightness(new Display.Brightness(15, 15));
         tile.update();
 
     }
@@ -132,7 +65,7 @@ public abstract class BaseMechanism {
         if (block == null) return false;
 
         // Проверяем базовый тип блока
-        if (block.getType() != this.material) return false;
+        if (block.getType() != this.mechanismType.getMaterial()) return false;
 
         BlockState state = block.getState();
 
@@ -144,18 +77,19 @@ public abstract class BaseMechanism {
         // Проверяем наш ключ
         String type = pdc.get(Keys.MACHINE_TYPE , PersistentDataType.STRING);
 
-        return this.key_type.equals(type);
+        return this.mechanismType.name().equals(type);
     }
 
-    public String getMechanismType(TileState tile) {
-        return tile.getPersistentDataContainer().get(Keys.MACHINE_TYPE, PersistentDataType.STRING);
-    }
+    //Getter and setter
+    public Location getLocation() { return location; }
+    public int getEnergyLevel() { return energyLevel; }
+    public void setEnergyLevel(int energyLevel) { this.energyLevel = energyLevel; }
+    public int getCapacity() {return capacity;}
+    public boolean isActive() { return isActive; }
+    public void setActive(boolean active) { isActive = active; }
+    public Player getOwner() { return owner; }
+    public MechanismType getMechanismType() {return this.mechanismType;}
+    public int getFrequency() {return frequency;}
+    public int getFreqSpeed() {return freqSpeed;}
 
-    public int getCurrentEnergy(TileState tile) {
-        return tile.getPersistentDataContainer().getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
-    }
-
-    public void setCurrentEnergy(TileState tile, int energy) {
-        tile.getPersistentDataContainer().set(Keys.BUFFER, PersistentDataType.INTEGER, energy);
-    }
 }

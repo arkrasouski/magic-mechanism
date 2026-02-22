@@ -8,12 +8,15 @@ import org.example.artyom.magicMechanism.commands.GeneratorCommands;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.database.DatabaseManager;
-import org.example.artyom.magicMechanism.events.BarrierEvents;
+//import org.example.artyom.magicMechanism.events.BarrierEvents;
+//import org.example.artyom.magicMechanism.events.GeneratorEvents;
 import org.example.artyom.magicMechanism.events.GeneratorEvents;
 import org.example.artyom.magicMechanism.inventories.barrier.BarrierInventory;
 import org.example.artyom.magicMechanism.inventories.generator.GenInventory;
-import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
+//import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
+//import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
+import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
 import java.sql.Connection;
@@ -44,29 +47,21 @@ public final class MagicMechanism extends JavaPlugin {
                 System.getenv("MYSQL_PASSWORD") != null ? System.getenv("MYSQL_PASSWORD") : "default");
         getLogger().info("Attempting to connect with password: " + password);
         databaseManager = new DatabaseManager("localhost", 3306, "minecraft", "spigot", password);//"spig0tDBpass!");
-//        try (Connection conn = databaseManager.getConnection()) {
-//            LogUtil.warn("БД подключена!");
-//            // работа с БД
-//        } // автоматически вернётся в пул
-//        catch (SQLException e) {
-//            throw new RuntimeException(e);
-//        }
-
-
+        GeneratorManager genManager = new GeneratorManager(this);
         GenInventory baseGenInventory = new GenInventory();
         BarrierInventory barrierInventory = new BarrierInventory();
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
-        GeneratorCellService genService = new GeneratorCellService(guiManager, baseGenInventory);
-        GeneratorBarrierService genBarrierService = new GeneratorBarrierService(genService.allGenerators());
+        GeneratorCellService genService = new GeneratorCellService(guiManager, genManager);
+      //  GeneratorBarrierService genBarrierService = new GeneratorBarrierService(genService.allGenerators());
 
 
 
-        getCommand("getgen").setExecutor(new GeneratorCommands());
-        getCommand("givecell").setExecutor(new GeneratorCommands());
-        getCommand("getbarrier").setExecutor(new GeneratorCommands());
+        getCommand("getgen").setExecutor(new GeneratorCommands(this, genManager));
+        getCommand("givecell").setExecutor(new GeneratorCommands(this, genManager));
+//        getCommand("getbarrier").setExecutor(new GeneratorCommands());
 
-        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(guiManager, genService, baseGenInventory), this);
-        Bukkit.getPluginManager().registerEvents(new BarrierEvents(databaseManager, barrierInventory), this);
+        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(this, genManager, guiManager), this);
+      //  Bukkit.getPluginManager().registerEvents(new BarrierEvents(databaseManager, barrierInventory), this);
 
         this.tickAllTask = Bukkit.getScheduler().runTaskTimer(
                 this,
@@ -76,8 +71,8 @@ public final class MagicMechanism extends JavaPlugin {
                     }
                 }, 1L, 5L
         );
-
-        // 2) Обновление GUI: чаще, но только если нужно
+//
+//        // 2) Обновление GUI: чаще, но только если нужно
         this.tickGuiTask = Bukkit.getScheduler().runTaskTimer(
                 this,
                 () -> {
@@ -86,10 +81,10 @@ public final class MagicMechanism extends JavaPlugin {
                     }
                 }, 20L, 20L
         );
-        this.tickBarrierTask = Bukkit.getScheduler().runTaskTimer(
-                this,
-                genBarrierService::tickEnergybarrierGenerator, 1L, 20L
-        );
+//        this.tickBarrierTask = Bukkit.getScheduler().runTaskTimer(
+//                this,
+//                genBarrierService::tickEnergybarrierGenerator, 1L, 20L
+//        );
 
     }
 

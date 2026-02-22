@@ -73,4 +73,8 @@ public abstract class BaseEnergyItem {
         meta.setLore(Arrays.asList("energy: " + clamped + "/" + cap));
         cell.setItemMeta(meta);
     }
+
+    public int getFrequency() {
+        return frequency;
+    }
 }

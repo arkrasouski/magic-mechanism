@@ -33,6 +33,7 @@ public abstract class BaseFillCustomInventory {
 
 
     public static void updateEnergyBar(Inventory top, MechanismHolder h, double percent) {
+        LogUtil.warn(percent + "");
         int size = top.getSize(); // ✅ ТОЧНЫЙ размер целевого инвентаря
         int start = size - 9, end = size - 1;
         int segments = end - start + 1;

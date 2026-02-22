@@ -1,12 +1,30 @@
 package org.example.artyom.magicMechanism.data.enums;
 
+import org.bukkit.Material;
+
 public enum MechanismType {
-    GENERATOR, BARRIER; // добавляйте новые
+    GENERATOR(Material.DROPPER),
+    BARRIER(Material.BARREL); // добавляйте новые
+
+    private final Material material;
+
+    MechanismType(Material material) {
+        this.material = material;
+    }
+
+    public Material getMaterial() {return material;}
 
     public String getGuiTitle() {
         return switch (this) {
             case GENERATOR -> "Генератор";
             case BARRIER -> "Барьер";
+        };
+    }
+
+    public String getGuiLore() {
+        return  switch (this) {
+            case GENERATOR -> "Генерирует энергию из кристаллов!";
+            case BARRIER -> "Генерирует защитный купол на территории";
         };
     }
 }

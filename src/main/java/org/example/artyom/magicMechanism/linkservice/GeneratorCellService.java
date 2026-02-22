@@ -14,42 +14,30 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.data.records.BlockPosKey;
 import org.example.artyom.magicMechanism.data.GeneratorGuiManager;
+import org.example.artyom.magicMechanism.inventories.BaseFillCustomInventory;
 import org.example.artyom.magicMechanism.inventories.generator.GenInventory;
 import org.example.artyom.magicMechanism.inventories.MechanismHolder;
 import org.example.artyom.magicMechanism.inventories.MechanismStorage;
 import org.example.artyom.magicMechanism.energyitems.EnergyCell;
+import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
-
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class GeneratorCellService {
     private final GeneratorGuiManager guiManager;
+    private final GeneratorManager generatorManager;
     private final GenInventory genInventory;
-
-    public GeneratorCellService(GeneratorGuiManager guiManager, GenInventory genInventory) {
+    private static final int UPDATE_INTERVAL = 20; // обновлять GUI каждые 20 тиков (1 сек)
+    private static final int CELL_SLOT = 9;
+    private int guiUpdateCounter = 0;
+    public GeneratorCellService(GeneratorGuiManager guiManager, GeneratorManager generatorManager) {
         this.guiManager = guiManager;
-        this.genInventory = genInventory;
+        this.generatorManager = generatorManager;
+        this.genInventory = new GenInventory();
     }
-    private final Map<BlockPosKey, Generator> generators = new HashMap<>();
 
     private static final Set<Location> ACTIVE = ConcurrentHashMap.newKeySet();
-
-
-    public void registerGenerator(Block b) {
-        generators.put(BlockPosKey.of(b.getLocation()), new Generator());
-    }
-
-    public void unregisterGenerator(Block b) {
-        generators.remove(BlockPosKey.of(b.getLocation()));
-    }
-
-    public Collection<Map.Entry<BlockPosKey, Generator>> allGenerators() {
-        return generators.entrySet();
-    }
 
     public static void onCellInserted(Location loc) {
         ACTIVE.add(loc);
@@ -63,27 +51,39 @@ public final class GeneratorCellService {
         return !ACTIVE.isEmpty();
     }
     // вызывать раз в тик/20 тиков
+
+    // ========== Основной тикер ==========
     public void tickAll() {
         ACTIVE.removeIf(loc -> !tickOne(loc));
+
+        guiUpdateCounter++;
+        if (guiUpdateCounter >= UPDATE_INTERVAL) {
+            tickOpenGuis();
+            guiUpdateCounter = 0;
+        }
     }
 
+
+
     public void tickOpenGuis() {
-        guiManager.viewers().forEach((k, uuids) -> {
-            World w = Bukkit.getWorld(k.worldId()); // [web:245]
+        guiManager.viewers().forEach((blockPos, playerUuids) -> {
+            World w = Bukkit.getWorld(blockPos.worldId());
             if (w == null) return;
 
-            Block b = w.getBlockAt(k.x(), k.y(), k.z()); // [web:341]
-            if (!Generator.isGenerator(b)) return;
+            Block block = w.getBlockAt(blockPos.x(), blockPos.y(), blockPos.z());
 
-            BlockState st = b.getState();
-            if (!(st instanceof TileState tile)) return;
+            Generator generator = generatorManager.getGenerator(block);
+            if(generator == null) return;
+
+            BlockState state = block.getState();
+            if (!(state instanceof TileState tile)) return;
 
             // истина из PDC
-            Inventory tmp = Bukkit.createInventory(null, 27);
-            MechanismStorage.loadItems(tile, tmp, Keys.KEY_ITEMS);
-            ItemStack cellFromPdc = tmp.getItem(9);
+            Inventory tmpInv = Bukkit.createInventory(null, 27);
+            MechanismStorage.loadItems(tile, tmpInv, Keys.KEY_ITEMS);
+            ItemStack cellFromPdc = tmpInv.getItem(CELL_SLOT);
 
-            uuids.removeIf(uuid -> {
+            playerUuids.removeIf(uuid -> {
                 Player p = Bukkit.getPlayer(uuid);
                 if (p == null) return true; // оффлайн [web:331]
 
@@ -91,16 +91,15 @@ public final class GeneratorCellService {
                 if (!(top.getHolder() instanceof MechanismHolder h)) return true;
 
                 // защита: игрок мог открыть другой генератор
-                if (!BlockPosKey.of(h.getLocation()).equals(k)) return true;
-                PersistentDataContainer genPDC = tile.getPersistentDataContainer();
-                int currentEnergy = genPDC.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
-                int capacity = genPDC.getOrDefault(Keys.CAPACITY, PersistentDataType.INTEGER, 0);
+                if (!BlockPosKey.of(h.getLocation()).equals(blockPos)) return true;
+                int currentEnergy = generator.getEnergyLevel();
+                int capacity = generator.getCapacity();
                 double energyPercent = (double) (currentEnergy * 100) / capacity;
-                genInventory.updateEnergyBar(top, h,energyPercent );
+                genInventory.updateEnergyBar(top, h,energyPercent);
 
                 // UI-обновление (при желании добавь фильтр, чтобы не перетирать игрока)
                 if(!EnergyCell.isEnergyCell(cellFromPdc)) return false;
-                top.setItem(9, cellFromPdc);
+                top.setItem(CELL_SLOT, cellFromPdc);
                 return false;
             });
         });
@@ -111,35 +110,64 @@ public final class GeneratorCellService {
         World w = loc.getWorld();
         if (w == null) return false;
 
-        Block b = w.getBlockAt(loc);
-        if (!Generator.isGenerator(b)) return false;
+        Block block = w.getBlockAt(loc);
+        Generator generator = generatorManager.getGenerator(block);
+        if(generator == null) return false;
 
-        BlockState st = b.getState();
-        if (!(st instanceof TileState tile)) return false;
+        BlockState state = block.getState();
+        if (!(state instanceof TileState tile)) return false;
 
         Inventory inv = Bukkit.createInventory(null, 27);
         MechanismStorage.loadItems(tile, inv, Keys.KEY_ITEMS);
 
-        ItemStack cell = inv.getItem(9);
-        if (!EnergyCell.isEnergyCell(cell)) return false;
+        ItemStack cellItem = inv.getItem(CELL_SLOT);
 
-        int cellEnergy = EnergyCell.getEnergy(cell);
+        if (!EnergyCell.isEnergyCell(cellItem)) return false;
+        EnergyCell cell = new EnergyCell(cellItem);
+        int cellEnergy = EnergyCell.getEnergy(cellItem);
+        // Ячейка пуста - остаемся активными, но ничего не делаем
         if (cellEnergy <= 0) return true;
 
+        int currentBuffer = generator.getEnergyLevel();
+        int maxCapacity = generator.getCapacity();
+
+        // Если буфер полон - ничего не делаем
+        if (currentBuffer >= maxCapacity) {
+            return true;
+        }
+
+        int spaceLeft = maxCapacity - currentBuffer;
+        int energyToTransfer = Math.min(cell.getFrequency(), Math.min(cellEnergy, spaceLeft));
+
+        if (energyToTransfer <= 0) {
+            return true;
+        }
+
+        // ===== ПЕРЕДАЧА ЭНЕРГИИ =====
+        EnergyCell.setEnergy(cellItem, cellEnergy - energyToTransfer);
+        inv.setItem(CELL_SLOT, cellItem);
+
+        // 2. Увеличиваем буфер генератора
+        generator.setEnergyLevel(currentBuffer + energyToTransfer);
+
+        // 3. Сохраняем изменения в PDC блока
+        generatorManager.saveGenerator(generator);
+
+        // 4. Обновляем PDC TileState для синхронизации
         PersistentDataContainer pdc = tile.getPersistentDataContainer();
-        int buf = pdc.getOrDefault(Keys.BUFFER, PersistentDataType.INTEGER, 0);
+        pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, generator.getEnergyLevel());
 
-        int moved = Math.min(2, cellEnergy);
-        moved = Math.min(moved, Generator.capacity - buf);
-        if (moved <= 0) return true;
+        // 5. Сохраняем инвентарь обратно в PDC
+        MechanismStorage.saveItems(tile, inv, Keys.KEY_ITEMS);
 
-        // Меняем ТОЛЬКО здесь
-        EnergyCell.setEnergy(cell, cellEnergy - moved); // внутри обновится lore
-        inv.setItem(9, cell);
-
-        pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
-
-        MechanismStorage.saveItems(tile, inv, Keys.KEY_ITEMS); // внутри tile.update() обязательно [web:65]
+        // 6. Обновляем TileState
+        tile.update();
+//        EnergyCell.setEnergy(cell, cellEnergy - moved); // внутри обновится lore
+//        inv.setItem(9, cell);
+//
+//        pdc.set(Keys.BUFFER, PersistentDataType.INTEGER, buf + moved);
+//
+//        MechanismStorage.saveItems(tile, inv, Keys.KEY_ITEMS); // внутри tile.update() обязательно [web:65]
         return true;
     }
 

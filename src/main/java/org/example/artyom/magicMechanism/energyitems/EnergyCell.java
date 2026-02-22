@@ -18,6 +18,9 @@ public class EnergyCell extends BaseEnergyItem {
         super(material, key_type, 300, 2, "Энерго-блок", "");
     }
 
+    public EnergyCell(ItemStack itemStack) {
+        super(itemStack.getType(), key_type, 300, 2, itemStack.getItemMeta().getDisplayName(), itemStack.getItemMeta().getLore().get(0));
+    }
     public static boolean isEnergyCell(ItemStack item){
         if (item == null) return false;
 
@@ -34,4 +37,6 @@ public class EnergyCell extends BaseEnergyItem {
 
         return key_type.equals(type);
     }
+
+
 }
