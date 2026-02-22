@@ -409,7 +409,7 @@ public class BarrierEvents extends BaseMechanismEvents {
             case PLAYER_SETTINGS_DENY_CHEST -> updateChestSetting(e.getInventory(), false);
             case PLAYER_SETTINGS_ALLOW_DAMAGE -> LogUtil.info("Разрешен урон");
             case PLAYER_SETTINGS_DENY_DAMAGE -> LogUtil.info("Запрещен урон");
-            case PLAYER_SETTINGS_REMOVE_PLAYER -> LogUtil.info("Удален игрок");
+            case PLAYER_SETTINGS_REMOVE_PLAYER -> removePlayer(player, h);
             case PLAYER_SETTINGS_RETURN -> openMainMenu(player, h);
         }
     }
@@ -442,7 +442,9 @@ public class BarrierEvents extends BaseMechanismEvents {
     private void addPlayerToBarrier(InventoryClickEvent e, Player player, MechanismHolder h, BarrierPlayerListMenuActionSlot action) {
         ItemStack clicked = e.getCurrentItem();
         String playerName = ChatColor.stripColor(clicked.getItemMeta().getDisplayName());
-
+        if(clicked.getType() == Material.LIME_WOOL && clicked.hasItemMeta()) {
+            return;
+        }
         e.getInventory().setItem(action.getSlotPlayer(),
                 ItemsUtil.create(Material.LIME_WOOL, 1, playerName,
                         action.getPdcKey(), List.of("Игрок добавлен в приват!")));
@@ -483,6 +485,17 @@ public class BarrierEvents extends BaseMechanismEvents {
         barrierInventory.updateEnergyBar(mainInventory, mainHolder, energyPercent);
         mainHolder.setInventory(mainInventory);
         player.openInventory(mainInventory);
+    }
+
+    private void removePlayer( Player player, MechanismHolder h){
+            if(h instanceof EditPlayerHolder eph){
+                if(h.getLocation().getBlock().getState() instanceof TileState tile){
+                    tile.getPersistentDataContainer().remove(Keys.BARRIER_ADDED_PLAYER_NAMES[eph.getSlot() - 1]);
+                    tile.update();
+                }
+
+            }
+            openMainMenu(player, h);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
