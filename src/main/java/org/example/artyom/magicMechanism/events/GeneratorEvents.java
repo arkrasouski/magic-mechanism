@@ -53,30 +53,78 @@ public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager,
         Player player = event.getPlayer();
         ItemStack item = event.getItemInHand();
 
-        // Проверяем, является ли предмет генератором
-        if (!isGeneratorItem(item)) return;
+        LogUtil.warn("========== ПОПЫТКА УСТАНОВКИ ГЕНЕРАТОРА ==========");
+        LogUtil.warn("1. Игрок: " + player.getName());
+        LogUtil.warn("2. Блок: " + block.getType() + " на " + block.getLocation());
+        LogUtil.warn("3. Предмет в руке: " + (item != null ? item.getType() : "null"));
 
-        // Проверяем, можно ли ставить здесь
+        // ШАГ 1: Проверка предмета
+        if (item == null) {
+            LogUtil.warn("❌ ШАГ 1: item == null");
+            return;
+        }
+
+        if (!item.hasItemMeta()) {
+            LogUtil.warn("❌ ШАГ 1: item.hasItemMeta() = false");
+            return;
+        }
+
+        // ШАГ 2: Проверка на генератор
+        if (!isGeneratorItem(item)) {
+            LogUtil.warn("❌ ШАГ 2: isGeneratorItem() = false");
+
+            // Дополнительно: покажем, что лежит в PDC
+            String type = item.getItemMeta()
+                    .getPersistentDataContainer()
+                    .get(Keys.MACHINE_TYPE, PersistentDataType.STRING);
+            LogUtil.warn("    Тип в PDC предмета: " + type);
+            return;
+        }
+        LogUtil.warn("✅ ШАГ 2: isGeneratorItem() = true");
+
+        // ШАГ 3: Проверка места установки
         if (!canPlaceGenerator(block, player)) {
+            LogUtil.warn("❌ ШАГ 3: canPlaceGenerator() = false");
+            LogUtil.warn("    isMechanism: " + generatorManager.isMechanism(block));
+            LogUtil.warn("    block type: " + block.getType());
+            LogUtil.warn("    isReplaceable: " + BlockUtil.isReplaceableBlock(block));
             event.setCancelled(true);
             player.sendMessage("§cНельзя установить генератор здесь!");
             return;
         }
+        LogUtil.warn("✅ ШАГ 3: canPlaceGenerator() = true");
 
-        // Создаем генератор через менеджер
-        Generator generator = new Generator(block.getLocation(), player);
-        generatorManager.addMechanismToIndex(generator);
+        // ШАГ 4: Создание через менеджер
+        LogUtil.warn("ШАГ 4: Вызов generatorManager.createMechanism()");
+        LogUtil.warn("    generatorManager класс: " + generatorManager.getClass().getSimpleName());
 
-        // Отправляем сообщение
+        Generator generator = generatorManager.createMechanism(block.getLocation(), player);
+
+        if (generator == null) {
+            LogUtil.warn("❌ ШАГ 4: generatorManager.createMechanism() вернул null!");
+            event.setCancelled(true);
+            player.sendMessage("§cОшибка при создании генератора!");
+            return;
+        }
+        LogUtil.warn("✅ ШАГ 4: Генератор создан, класс: " + generator.getClass().getSimpleName());
+        LogUtil.warn("    Тип генератора: " + generator.getMechanismType().name());
+        LogUtil.warn("    Энергия: " + generator.getEnergyLevel());
+
+        // ШАГ 5: Сообщение игроку
         player.sendMessage("§a✓ Генератор успешно установлен!");
+        LogUtil.warn("✅ ШАГ 5: Сообщение отправлено");
 
-        // Визуальный эффект
+        // ШАГ 6: Визуальный эффект
         spawnPlaceEffect(block);
+        LogUtil.warn("✅ ШАГ 6: Эффект спавна");
+
+        LogUtil.warn("========== ГЕНЕРАТОР УСПЕШНО УСТАНОВЛЕН ==========");
     }
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
 
     private boolean isGeneratorItem(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
+
         // Проверка на наличие метки генератора
         return item.getItemMeta().getPersistentDataContainer()
                 .has(new NamespacedKey(plugin, "generator_item"), PersistentDataType.BOOLEAN);

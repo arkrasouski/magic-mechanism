@@ -339,4 +339,8 @@ public abstract class BaseManager<T extends BaseMechanism> {
 
         return mechanismType.name().toLowerCase() + "_" + relativeX + "_" + y + "_" + relativeZ;
     }
+
+    public boolean hasMechanism(Location location) {
+        return activeMechanisms.containsKey(location);
+    }
 }

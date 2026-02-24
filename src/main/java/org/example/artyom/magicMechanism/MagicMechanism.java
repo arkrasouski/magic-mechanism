@@ -51,24 +51,24 @@ public final class MagicMechanism extends JavaPlugin {
         String password = getConfig().getString("database.password",
                 System.getenv("MYSQL_PASSWORD") != null ? System.getenv("MYSQL_PASSWORD") : "default");
         getLogger().info("Attempting to connect with password: " + password);
-        databaseManager = new DatabaseManager("localhost", 3306, "minecraft", "spigot", password);//"spig0tDBpass!");
+        databaseManager = new DatabaseManager("localhost", 3306, "minecraft", "spigot", "spig0tDBpass!");//password);//"spig0tDBpass!");
         genManager = new GeneratorManager(this);
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         GeneratorCellService genService = new GeneratorCellService(guiManager, genManager);
-       // BarrierManager barrierManager = new BarrierManager(this);
-        //GeneratorBarrierService genBarrierService = new GeneratorBarrierService(this, genManager, barrierManager);
-        //genManager.loadAllGeneratorsFromLoadedChunks();
+        BarrierManager barrierManager = new BarrierManager(this);
+        GeneratorBarrierService genBarrierService = new GeneratorBarrierService(this, genManager, barrierManager);
+        genManager.loadAllMechanismsFromLoadedChunks();
 
-//        getServer().getScheduler().runTaskTimer(this, () -> {
-//            genManager.saveAllGenerators();
-//        }, 6000L, 6000L); // Каждые 5 минут
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            genManager.saveAllMechanisms();
+        }, 6000L, 6000L); // Каждые 5 минут
 
         getCommand("getgen").setExecutor(new GeneratorCommands(this));
         getCommand("givecell").setExecutor(new GeneratorCommands(this));
         getCommand("getbarrier").setExecutor(new GeneratorCommands(this));
 
         Bukkit.getPluginManager().registerEvents(new GeneratorEvents(this, genManager, guiManager), this);
-        //Bukkit.getPluginManager().registerEvents(new BarrierEvents(this, barrierManager, databaseManager), this);
+        Bukkit.getPluginManager().registerEvents(new BarrierEvents(this, barrierManager, databaseManager), this);
 
         this.tickAllTask = Bukkit.getScheduler().runTaskTimer(
                 this,
@@ -88,7 +88,7 @@ public final class MagicMechanism extends JavaPlugin {
                     }
                 }, 20L, 20L
         );
-      //  energyTicker = new GeneratorBarrierService(this, genManager, barrierManager);
+        energyTicker = new GeneratorBarrierService(this, genManager, barrierManager);
         energyTicker.runTaskTimer(this, 20L, 20L);
 
     }
@@ -101,9 +101,9 @@ public final class MagicMechanism extends JavaPlugin {
         if (tickAllTask != null) tickAllTask.cancel();
         if (tickGuiTask != null) tickGuiTask.cancel();
         if (tickBarrierTask != null) tickBarrierTask.cancel();
-//        if (genManager != null) {
-//            genManager.saveAllGenerators();
-//        }
+        if (genManager != null) {
+            genManager.saveAllMechanisms();
+        }
 
         getLogger().info("Плагин генераторов выключен!");
     }

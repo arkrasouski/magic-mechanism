@@ -2,12 +2,8 @@ package org.example.artyom.magicMechanism.linkservice;
 
 import org.bukkit.Location;
 import org.bukkit.block.Block;
-import org.bukkit.block.TileState;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.example.artyom.magicMechanism.MagicMechanism;
-import org.example.artyom.magicMechanism.data.Keys;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
@@ -26,12 +22,10 @@ public class GeneratorBarrierService extends BukkitRunnable {
     private final MagicMechanism plugin;
     private final GeneratorManager generatorManager;
     private final BarrierManager barrierManager;
-    private final int TRANSFER_RATE = 10; // сколько энергии передаем за раз
+    private final int TRANSFER_RATE = 10;
+    private final int GENERATION_RATE = 5;
 
-    // Карта потребителей с их логикой обработки
     private final Map<MechanismType, ConsumerHandler> consumerHandlers = new EnumMap<>(MechanismType.class);
-
-    // Блоки, которые могут принимать энергию
     private final List<MechanismType> consumers = new ArrayList<>();
 
     public GeneratorBarrierService(MagicMechanism plugin, GeneratorManager generatorManager, BarrierManager barrierManager) {
@@ -39,206 +33,198 @@ public class GeneratorBarrierService extends BukkitRunnable {
         this.generatorManager = generatorManager;
         this.barrierManager = barrierManager;
 
-        // Добавляем типы блоков-потребителей
         consumers.add(MechanismType.BARRIER);
-
-        // Регистрируем обработчики для разных типов
         registerHandlers();
     }
 
-    /**
-     * Регистрирует обработчики для разных типов потребителей
-     */
     private void registerHandlers() {
-        // Обработчик для BARRIER (накопление энергии)
         consumerHandlers.put(MechanismType.BARRIER, (block, energy) -> {
-            PersistentDataContainer pdc = ((TileState) block.getState()).getPersistentDataContainer();
+            Barrier barrier = barrierManager.getMechanism(block.getLocation());
 
-            // Получаем текущую накопленную энергию
-            Barrier barrier = barrierManager.getMechanism(block);
+            if (barrier == null) {
+                return 0;
+            }
 
             int stored = barrier.getEnergyLevel();
             int maxStorage = barrier.getCapacity();
 
-            // Добавляем энергию
+            if (stored >= maxStorage) {
+                return 0;
+            }
+
             int newStored = Math.min(stored + energy, maxStorage);
             barrier.setEnergyLevel(newStored);
-
-            // Обновляем состояние блока
+            barrierManager.saveMechanism(barrier);
 
             LogUtil.info(String.format("Барьер получил %d энергии. Всего: %d/%d",
                     energy, newStored, maxStorage));
 
-            return newStored - stored; // Возвращаем сколько реально использовано
+            return newStored - stored;
         });
     }
 
     @Override
     public void run() {
-        // Проходим по всем активным генераторам
+        boolean anyEnergyTransferred = false;
+
         for (BaseMechanism generatorRaw : generatorManager.getAllMechanisms()) {
             if (!(generatorRaw instanceof Generator generator)) continue;
 
-            // Генерируем энергию (раскомментируйте если нужно)
-            // generator.generateEnergy();
+            int energyBefore = generator.getEnergyLevel();
+            LogUtil.warn("Генератор " + generator.getLocation() + " энергия до: " + energyBefore);
 
-            // Ищем потребителей рядом и передаем энергию
-            transferEnergyToNearbyConsumers(generator);
+            // Генерируем энергию ТОЛЬКО если не достигнут максимум
+//            if (energyBefore < generator.getCapacity()) {
+//                int newEnergy = Math.min(energyBefore + GENERATION_RATE, generator.getCapacity());
+//                generator.setEnergyLevel(newEnergy);
+//                LogUtil.warn("Сгенерирована энергия: " + (newEnergy - energyBefore) + ", теперь: " + newEnergy);
+//            }
 
-            // Сохраняем обновленное состояние
-            generatorManager.saveMechanism(generator);
+            // Передаем энергию ТОЛЬКО если есть что передавать
+            int currentEnergy = generator.getEnergyLevel();
+            if (currentEnergy > 0) {
+                int energyTransferred = transferEnergyToNearbyConsumers(generator);
+                if (energyTransferred > 0) {
+                    anyEnergyTransferred = true;
+                    LogUtil.warn("Передано энергии: " + energyTransferred + ", осталось: " + generator.getEnergyLevel());
+                }
+            } else {
+                LogUtil.warn("Нет энергии для передачи");
+            }
+
+            // Сохраняем только если энергия изменилась
+            if (energyBefore != generator.getEnergyLevel()) {
+                generatorManager.saveMechanism(generator);
+            }
         }
 
-        // Дополнительно: обновляем активные эффекты у потребителей
-        updateActiveConsumers();
+        if (anyEnergyTransferred) {
+            LogUtil.warn("Энергия передавалась в этом тике");
+        }
     }
 
     /**
-     * Передаем энергию потребителям рядом
+     * Передает энергию потребителям
+     * @return количество переданной энергии
      */
-    private void transferEnergyToNearbyConsumers(Generator generator) {
+    private int transferEnergyToNearbyConsumers(Generator generator) {
         Location loc = generator.getLocation();
-        int radius = 5; // радиус поиска потребителей
+        int radius = 5;
         int remainingEnergy = generator.getEnergyLevel();
+        int totalTransferred = 0;
 
-        if (remainingEnergy <= 0) return;
+        if (remainingEnergy <= 0) return 0;
 
-        // Ищем блоки в радиусе
-        for (int x = -radius; x <= radius && remainingEnergy > 0; x++) {
-            for (int y = -radius; y <= radius && remainingEnergy > 0; y++) {
-                for (int z = -radius; z <= radius && remainingEnergy > 0; z++) {
+        // Сначала собираем всех потребителей, которые могут принять энергию
+        List<ConsumerInfo> availableConsumers = new ArrayList<>();
+
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -radius; y <= radius; y++) {
+                for (int z = -radius; z <= radius; z++) {
                     Block relativeBlock = loc.clone().add(x, y, z).getBlock();
 
+                    if (relativeBlock.getLocation().equals(loc)) continue;
+
                     // Проверяем, является ли блок потребителем
-                    if (!isConsumer(relativeBlock)) continue;
-
-                    // Получаем тип потребителя
-                    MechanismType consumerType = getMechanismType(relativeBlock);
-                    if (consumerType == null) continue;
-
-                    // Получаем обработчик для этого типа
-                    ConsumerHandler handler = consumerHandlers.get(consumerType);
-                    if (handler == null) continue;
-
-                    // Рассчитываем сколько энергии передать (не больше остатка)
-                    int energyToTransfer = Math.min(TRANSFER_RATE, remainingEnergy);
-
-                    // Передаем энергию через обработчик
-                    int usedEnergy = handler.consume(relativeBlock, energyToTransfer);
-
-                    if (usedEnergy > 0) {
-                        // Уменьшаем энергию генератора
-                        generator.transferEnergy(usedEnergy);
-                        remainingEnergy -= usedEnergy;
-
-                        // Визуальный эффект передачи
-                        spawnTransferEffect(generator.getLocation(), relativeBlock.getLocation());
-
-                        LogUtil.info(String.format("Передано %d энергии от генератора к %s",
-                                usedEnergy, consumerType));
+                    ConsumerInfo consumer = getConsumerIfCanAccept(relativeBlock);
+                    if (consumer != null) {
+                        availableConsumers.add(consumer);
                     }
                 }
             }
         }
+
+        if (availableConsumers.isEmpty()) {
+            LogUtil.warn("Нет доступных потребителей");
+            return 0;
+        }
+
+        LogUtil.warn("Найдено потребителей: " + availableConsumers.size());
+
+        // Передаем энергию потребителям
+        for (ConsumerInfo consumer : availableConsumers) {
+            if (remainingEnergy <= 0) break;
+
+            int energyToTransfer = Math.min(TRANSFER_RATE, remainingEnergy);
+            int usedEnergy = consumer.handler.consume(consumer.block, energyToTransfer);
+
+            if (usedEnergy > 0) {
+                generator.transferEnergy(usedEnergy);
+                remainingEnergy -= usedEnergy;
+                totalTransferred += usedEnergy;
+                spawnTransferEffect(generator.getLocation(), consumer.block.getLocation());
+
+                LogUtil.info(String.format("Передано %d энергии от генератора к %s",
+                        usedEnergy, consumer.type));
+            }
+        }
+
+        return totalTransferred;
+    }
+
+    /**
+     * Проверяет, может ли блок потреблять энергию, и возвращает информацию о потребителе
+     */
+    private ConsumerInfo getConsumerIfCanAccept(Block block) {
+        if (block == null) return null;
+
+        Location loc = block.getLocation();
+
+        // Проверяем барьер
+        if (barrierManager.hasMechanism(loc)) {
+            Barrier barrier = barrierManager.getMechanism(loc);
+            if (barrier != null && barrier.getEnergyLevel() < barrier.getCapacity()) {
+                return new ConsumerInfo(block, MechanismType.BARRIER, consumerHandlers.get(MechanismType.BARRIER));
+            }
+        }
+
+        // Здесь можно добавить другие типы потребителей
+
+        return null;
     }
 
     /**
      * Проверяем, может ли блок потреблять энергию
      */
     public boolean isConsumer(Block block) {
-        if (block == null) return false;
-
-        MechanismType type = getMechanismType(block);
-        if (type == null || !consumers.contains(type)) return false;
-
-        // Дополнительная проверка: может ли потребитель принять энергию
-        return canAcceptEnergy(block, type);
+        return getConsumerIfCanAccept(block) != null;
     }
 
     /**
-     * Проверяет, может ли конкретный потребитель принять энергию
-     */
-    private boolean canAcceptEnergy(Block block, MechanismType type) {
-        if (!(block.getState() instanceof TileState tile)) return false;
-
-        PersistentDataContainer pdc = tile.getPersistentDataContainer();
-
-        switch (type) {
-            case BARRIER:
-                Barrier barrier = barrierManager.getMechanism(block);
-                int stored = barrier.getEnergyLevel();
-                int maxStorage = barrier.getCapacity();
-                return stored < maxStorage;
-
-            default:
-                return true;
-        }
-    }
-
-    /**
-     * Получает тип механизма из блока
+     * Получает тип механизма из менеджеров
      */
     private MechanismType getMechanismType(Block block) {
-        if (!(block.getState() instanceof TileState tileState)) {
-            return null;
+        if (block == null) return null;
+
+        Location loc = block.getLocation();
+
+        if (barrierManager.hasMechanism(loc)) {
+            return MechanismType.BARRIER;
         }
 
-        PersistentDataContainer pdc = tileState.getPersistentDataContainer();
-        String typeName = pdc.get(Keys.MACHINE_TYPE, PersistentDataType.STRING);
-
-        if (typeName == null) return null;
-
-        try {
-            return MechanismType.valueOf(typeName);
-        } catch (IllegalArgumentException e) {
-            return null;
+        if (generatorManager.hasMechanism(loc)) {
+            return MechanismType.GENERATOR;
         }
+
+        return null;
     }
 
-    /**
-     * Применяет ускорение к печи
-     */
-
-    /**
-     * Активирует машину при получении энергии
-     */
-    private void activateMachine(Block machine) {
-        // Здесь можно добавить логику активации
-        // Например, включить частицы, звук и т.д.
-        machine.getWorld().playSound(machine.getLocation(),
-                org.bukkit.Sound.BLOCK_BEACON_ACTIVATE, 0.5f, 1.5f);
-    }
-
-    /**
-     * Создает визуальный эффект передачи энергии
-     */
     private void spawnTransferEffect(Location from, Location to) {
-        // Частицы между генератором и потребителем
-        from.getWorld().spawnParticle(
-                org.bukkit.Particle.END_ROD,
-                from.clone().add(0.5, 1, 0.5),
-                0, // 0 значит одна частица
-                to.getX() - from.getX(),
-                to.getY() - from.getY(),
-                to.getZ() - from.getZ(),
-                0.5
-        );
-    }
-
-    /**
-     * Обновляет активных потребителей (вызывается каждый тик)
-     */
-    private void updateActiveConsumers() {
-        // Здесь можно обновлять эффекты у всех потребителей
-        // Например, уменьшать время ускорения у печей
-        for (BaseMechanism mechanism : generatorManager.getAllMechanisms()) {
-            // Логика обновления
+        try {
+            from.getWorld().spawnParticle(
+                    org.bukkit.Particle.END_ROD,
+                    from.clone().add(0.5, 1, 0.5),
+                    0,
+                    to.getX() - from.getX(),
+                    to.getY() - from.getY(),
+                    to.getZ() - from.getZ(),
+                    0.5
+            );
+        } catch (Exception e) {
+            // Игнорируем ошибки частиц
         }
     }
 
-    /**
-     * Добавляет новый тип потребителя
-     */
     public void addConsumerType(MechanismType type, ConsumerHandler handler) {
         consumers.add(type);
         if (handler != null) {
@@ -246,25 +232,28 @@ public class GeneratorBarrierService extends BukkitRunnable {
         }
     }
 
-    /**
-     * Удаляет тип потребителя
-     */
     public void removeConsumerType(MechanismType type) {
         consumers.remove(type);
         consumerHandlers.remove(type);
     }
 
     /**
-     * Интерфейс для обработчиков потребителей
+     * Вспомогательный класс для хранения информации о потребителе
      */
+    private static class ConsumerInfo {
+        final Block block;
+        final MechanismType type;
+        final ConsumerHandler handler;
+
+        ConsumerInfo(Block block, MechanismType type, ConsumerHandler handler) {
+            this.block = block;
+            this.type = type;
+            this.handler = handler;
+        }
+    }
+
     @FunctionalInterface
     public interface ConsumerHandler {
-        /**
-         * Обрабатывает получение энергии потребителем
-         * @param block блок-потребитель
-         * @param energy количество полученной энергии
-         * @return сколько энергии реально использовано
-         */
         int consume(Block block, int energy);
     }
 }
