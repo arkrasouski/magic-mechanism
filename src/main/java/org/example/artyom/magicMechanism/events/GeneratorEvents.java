@@ -32,6 +32,7 @@ import org.example.artyom.magicMechanism.items.GeneratorItem;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
+import org.example.artyom.magicMechanism.utils.BlockUtil;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 import org.example.artyom.magicMechanism.utils.ToolUtil;
 
@@ -64,7 +65,7 @@ public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager,
 
         // Создаем генератор через менеджер
         Generator generator = new Generator(block.getLocation(), player);
-        generatorManager.addGeneratorToIndex(generator);
+        generatorManager.addMechanismToIndex(generator);
 
         // Отправляем сообщение
         player.sendMessage("§a✓ Генератор успешно установлен!");
@@ -83,49 +84,19 @@ public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager,
 
     private boolean canPlaceGenerator(Block block, Player player) {
         // Проверка на пустой блок
-        if (block.getType() != Material.AIR && isReplaceableBlock(block)) {
+        if (block.getType() != Material.AIR && BlockUtil.isReplaceableBlock(block)) {
             return false;
         }
 
         // Проверка на наличие другого генератора
-        if (generatorManager.isGenerator(block)) {
+        if (generatorManager.isMechanism(block)) {
             return false;
         }
 
         // Проверка прав
         return player.hasPermission("generator.place");
     }
-    private boolean isReplaceableBlock(Block block) {
-        Material type = block.getType();
 
-        // Список заменяемых блоков (можно дополнить)
-        return type == Material.AIR ||
-                type == Material.CAVE_AIR ||
-                type == Material.VOID_AIR ||
-                type == Material.WATER ||
-                type == Material.LAVA ||
-                type == Material.SHORT_GRASS ||
-                type == Material.TALL_GRASS ||
-                type == Material.FERN ||
-                type == Material.LARGE_FERN ||
-                type == Material.DEAD_BUSH ||
-                type == Material.VINE ||
-                type == Material.SNOW ||
-                type == Material.SNOW_BLOCK ||
-                type.name().contains("FLOWER") ||
-                type.name().contains("MUSHROOM") ||
-                type.name().contains("SAPLING") ||
-                type.name().endsWith("_CARPET") ||
-                type.name().endsWith("_PLANT") ||
-                type.name().contains("TORCH") ||
-                type == Material.REDSTONE_WIRE ||
-                type == Material.TRIPWIRE ||
-                type == Material.LEVER ||
-                type == Material.STONE_BUTTON ||
-                type == Material.OAK_BUTTON ||
-                type == Material.REPEATER ||
-                type == Material.COMPARATOR;
-    }
     private boolean canBreakGenerator(Generator generator, Player player) {
         // Владелец всегда может сломать
         if (generator.getOwner() != null && generator.getOwner().equals(player)) {
@@ -174,9 +145,9 @@ public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager,
         Player player = event.getPlayer();
         if (mechanismManager instanceof GeneratorManager generatorManager) {
             // Проверяем, является ли сломанный блок генератором
-            if (generatorManager.getGenerator(block) != null) {
+            if (generatorManager.getMechanism(block) != null) {
                 // Удаляем генератор
-                generatorManager.removeGenerator(block);
+                generatorManager.deleteMechanism(block.getLocation());
 
                 ItemStack tool = player.getInventory().getItemInMainHand();
                 if (!ToolUtil.canBreakWithTool(player, tool)) {
@@ -230,7 +201,7 @@ public void onClose(InventoryCloseEvent e) {
 
         // Проверяем, является ли блок генератором через наш GeneratorManager
         if (mechanismManager instanceof GeneratorManager generatorManager) {
-            Generator generator = generatorManager.getGenerator(block);
+            Generator generator = generatorManager.getMechanism(block);
             if (generator == null) return;
 
             // Отменяем событие, чтобы не открывался ванильный интерфейс
@@ -329,7 +300,7 @@ public void onClose(InventoryCloseEvent e) {
         Block block = loc.getBlock();
         BlockState state = block.getState();
         if(mechanismManager instanceof GeneratorManager generatorManager) {
-        Generator generator = generatorManager.getGenerator(block);
+        Generator generator = generatorManager.getMechanism(block);
         if (generator == null) return;
         int topSize = top.getSize();
         if(e.getRawSlot() >= topSize) return;
@@ -366,7 +337,7 @@ public void onClose(InventoryCloseEvent e) {
         Location loc = holder.getLocation();
         Block block = loc.getBlock();
         if(mechanismManager instanceof GeneratorManager generatorManager) {
-        Generator generator = generatorManager.getGenerator(block);
+        Generator generator = generatorManager.getMechanism(block);
         if (generator == null) return;
         int topSize = top.getSize();
 
@@ -432,7 +403,7 @@ public void onClose(InventoryCloseEvent e) {
         Chunk chunk = event.getChunk();
 
         // Загружаем генераторы из чанка
-        generatorManager.loadGeneratorsFromChunk(chunk);
+        generatorManager.loadMechanismsFromChunk(chunk);
 
        //LogUtil.warn("Чанк загружен: " + chunk.getX() + ", " + chunk.getZ());
     }
@@ -442,10 +413,10 @@ public void onClose(InventoryCloseEvent e) {
         Chunk chunk = event.getChunk();
 
         // Сохраняем генераторы перед выгрузкой
-        generatorManager.saveGeneratorsFromChunk(chunk);
+        generatorManager.saveMechanismsFromChunk(chunk);
 
         // Очищаем кэш
-        generatorManager.unloadChunkGenerators(chunk);
+        generatorManager.unloadChunkMechanisms(chunk);
 
        //LogUtil.warn("Чанк выгружен: " + chunk.getX() + ", " + chunk.getZ());
     }

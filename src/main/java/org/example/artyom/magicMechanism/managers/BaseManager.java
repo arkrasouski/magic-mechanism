@@ -3,6 +3,7 @@ package org.example.artyom.magicMechanism.managers;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -10,199 +11,332 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.data.records.ChunkCoordinate;
+import org.example.artyom.magicMechanism.data.records.MechanismData;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
-import org.example.artyom.magicMechanism.mechanisms.Generator;
+import org.example.artyom.magicMechanism.utils.LogUtil;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class BaseManager {
+public abstract class BaseManager<T extends BaseMechanism> {
     protected final MagicMechanism plugin;
-    private final NamespacedKey energyKey;
-    private final NamespacedKey capacityKey;
-    private final NamespacedKey activeKey;
-    private final NamespacedKey ownerKey;
-    private final MechanismType mechanismType;
+    protected final MechanismType mechanismType;
 
-    private final Map<Location, BaseMechanism> mechanismsByLocation;
+    // Ключи для хранения в PDC чанка
+    protected final NamespacedKey mechanismCountKey;
+    protected final NamespacedKey mechanismListKey;
 
-    // Индекс по чанкам
-    private final Map<ChunkCoordinate, Set<Location>> mechanismsByChunk;
-
-    // Индекс по типу для быстрого доступа
-    private final Map<MechanismType, Set<Location>> mechanismsByType;
-
-    // Ключи для PDC
-    private final NamespacedKey mechanismsDataKey;
-    private final NamespacedKey mechanismsCountKey;
-
-
-
-    // Кэш активных генераторов для быстрого доступа
-    protected final Map<Location, BaseMechanism> activeMechanisms = new ConcurrentHashMap<>();
+    // Основные кэши
+    protected final Map<Location, T> activeMechanisms = new ConcurrentHashMap<>();
+    protected final Map<ChunkCoordinate, Set<Location>> mechanismsByChunk = new ConcurrentHashMap<>();
 
     public BaseManager(MagicMechanism plugin, MechanismType mechanismType) {
         this.plugin = plugin;
         this.mechanismType = mechanismType;
-        // Создаем ключи для хранения в PDC
-        this.energyKey = new NamespacedKey(plugin, mechanismType.name() + "_energy");
-        this.capacityKey = new NamespacedKey(plugin, mechanismType.name() + "_capacity");
-        this.activeKey = new NamespacedKey(plugin, mechanismType.name() + "_" + "_active");
-        this.ownerKey = new NamespacedKey(plugin, mechanismType.name() + "_owner");
 
-        this.mechanismsByLocation = new ConcurrentHashMap<>();
-        this.mechanismsByChunk = new ConcurrentHashMap<>();
-        this.mechanismsByType = new ConcurrentHashMap<>();
+        // Инициализация ключей для хранения списка механизмов в чанке
+        String typeName = mechanismType.name().toLowerCase();
+        this.mechanismCountKey = new NamespacedKey(plugin, typeName + "_count");
+        this.mechanismListKey = new NamespacedKey(plugin, typeName + "_list");
+    }
 
-        this.mechanismsDataKey = new NamespacedKey(plugin, "mechanisms_data");
-        this.mechanismsCountKey = new NamespacedKey(plugin, "mechanisms_count");
+    // ========== АБСТРАКТНЫЕ МЕТОДЫ ==========
+
+    /**
+     * Создает новый экземпляр механизма
+     */
+    protected abstract T createMechanismInstance(Location location, Player owner,
+                                                 int energy, int capacity, boolean active);
+
+    /**
+     * Создает данные механизма для сериализации
+     */
+    protected MechanismData createMechanismData(T mechanism) {
+        return new MechanismData(
+                mechanism.getLocation().getBlockX(),
+                mechanism.getLocation().getBlockY(),
+                mechanism.getLocation().getBlockZ(),
+                mechanism.getEnergyLevel(),
+                mechanism.getCapacity(),
+                mechanism.isActive(),
+                mechanism.getOwner() != null ? mechanism.getOwner().getUniqueId() : null
+        );
     }
 
     /**
-     * Сохраняем генератор в PDC чанка
+     * Десериализует механизм из данных
      */
-    public void saveMechanism(BaseMechanism mechanism) {
-        Location loc = mechanism.getLocation();
-        Block block = loc.getBlock();
-        Chunk chunk = block.getChunk();
+    protected abstract T deserializeMechanism(MechanismData data, World world);
 
-        // Получаем PDC чанка
+    // ========== РАБОТА С PDC ЧАНКА ==========
+
+    /**
+     * Загружает все механизмы из чанка
+     */
+    public void loadMechanismsFromChunk(Chunk chunk) {
+        ChunkCoordinate chunkCoord = ChunkCoordinate.of(chunk);
         PersistentDataContainer chunkData = chunk.getPersistentDataContainer();
 
-        // Создаем уникальный ключ для этого блока в чанке
-        String blockKey = getBlockKey(block);
+        // Получаем количество механизмов в чанке
+        int mechanismCount = chunkData.getOrDefault(mechanismCountKey, PersistentDataType.INTEGER, 0);
+        if (mechanismCount == 0) return;
 
-        // Сохраняем все параметры генератора
-        NamespacedKey energyKey = new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_energy");
-        NamespacedKey capacityKey = new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_max");
-        NamespacedKey activeKey = new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_active");
-        NamespacedKey ownerKey = new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_owner");
+        // Получаем список механизмов в виде строки
+        String mechanismsString = chunkData.get(mechanismListKey, PersistentDataType.STRING);
+        if (mechanismsString == null || mechanismsString.isEmpty()) return;
 
-        chunkData.set(energyKey, PersistentDataType.INTEGER, mechanism.getEnergyLevel());
-        chunkData.set(capacityKey, PersistentDataType.INTEGER, mechanism.getCapacity());
-        chunkData.set(activeKey, PersistentDataType.INTEGER, mechanism.isActive() ? 1 : 0);
+        // Разбираем строку на отдельные записи
+        String[] mechanismEntries = mechanismsString.split("\\|");
+        Set<Location> chunkMechanisms = new HashSet<>();
 
-        // Сохраняем UUID владельца как строку
-        if (mechanism.getOwner() != null) {
-            chunkData.set(ownerKey, PersistentDataType.STRING, mechanism.getOwner().getUniqueId().toString());
+        for (String entry : mechanismEntries) {
+            if (entry.isEmpty()) continue;
+
+            MechanismData data = MechanismData.deserialize(entry);
+            if (data == null) continue;
+
+            T mechanism = deserializeMechanism(data, chunk.getWorld());
+            if (mechanism == null) continue;
+
+            Location loc = mechanism.getLocation();
+
+            // Добавляем в кэш
+            activeMechanisms.put(loc, mechanism);
+            chunkMechanisms.add(loc);
+
+            LogUtil.warn("Загружен " + mechanismType.getGuiTitle() +
+                    " из чанка: " + loc);
         }
 
-        // Обновляем кэш
-        activeMechanisms.put(loc, mechanism);
+        // Сохраняем индекс
+        mechanismsByChunk.put(chunkCoord, chunkMechanisms);
+
+        LogUtil.info("Загружено " + chunkMechanisms.size() + " " +
+                mechanismType.getGuiTitle() + " из чанка " +
+                chunk.getX() + ", " + chunk.getZ());
     }
 
     /**
-     * Загружаем генератор из PDC чанка
+     * Сохраняет все механизмы указанного чанка
      */
-//    public Generator loadGenerator(Block block, Player owner) {
-//        Chunk chunk = block.getChunk();
-//        PersistentDataContainer chunkData = chunk.getPersistentDataContainer();
-//
-//        String blockKey = getBlockKey(block);
-//
-//        NamespacedKey energyKey = new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_energy");
-//        NamespacedKey capacityKey = new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_max");
-//        NamespacedKey activeKey = new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_active");
-//        NamespacedKey ownerKey = new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_owner");
-//
-//        // Проверяем, есть ли данные для этого блока
-//        if (!chunkData.has(energyKey, PersistentDataType.INTEGER)) {
-//            return null; // Это не генератор
-//        }
-//
-//        // Загружаем данные
-//        int energy = chunkData.getOrDefault(energyKey, PersistentDataType.INTEGER, 0);
-//        int maxEnergy = chunkData.getOrDefault(capacityKey, PersistentDataType.INTEGER, 1000);
-//        boolean isActive = chunkData.getOrDefault(activeKey, PersistentDataType.INTEGER, 1) == 1;
-//
-//        // Загружаем владельца
-//        Player loadedOwner = owner;
-//        if (chunkData.has(ownerKey, PersistentDataType.STRING)) {
-//            String ownerUUID = chunkData.get(ownerKey, PersistentDataType.STRING);
-//            try {
-//                UUID uuid = UUID.fromString(ownerUUID);
-//                loadedOwner = plugin.getServer().getPlayer(uuid);
-//            } catch (IllegalArgumentException ignored) {}
-//        }
-//
-//        return new Generator(block.getLocation(),loadedOwner, energy, maxEnergy, isActive);
-//    }
+    public void saveMechanismsFromChunk(Chunk chunk) {
+        ChunkCoordinate chunkCoord = ChunkCoordinate.of(chunk);
+        Set<Location> chunkMechanisms = mechanismsByChunk.get(chunkCoord);
 
-    /**
-     * Удаляем генератор из PDC
-     */
-    public void removeGenerator(Block block) {
-        Chunk chunk = block.getChunk();
+        if (chunkMechanisms == null || chunkMechanisms.isEmpty()) {
+            clearChunkMechanismData(chunk);
+            return;
+        }
+
         PersistentDataContainer chunkData = chunk.getPersistentDataContainer();
 
-        String blockKey = getBlockKey(block);
+        // Сериализуем все механизмы чанка
+        List<String> serializedMechanisms = new ArrayList<>();
 
-        // Удаляем все ключи этого генератора
-        chunkData.remove(new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_energy"));
-        chunkData.remove(new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_max"));
-        chunkData.remove(new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_active"));
-        chunkData.remove(new NamespacedKey(plugin, mechanismType.name() + "_" + blockKey + "_owner"));
+        for (Location loc : chunkMechanisms) {
+            T mechanism = activeMechanisms.get(loc);
+            if (mechanism == null) continue;
 
-        // Удаляем из кэша
-        activeMechanisms.remove(block.getLocation());
+            MechanismData data = createMechanismData(mechanism);
+            serializedMechanisms.add(data.serialize());
+        }
+
+        // Сохраняем в PDC чанка
+        String mechanismsString = String.join("|", serializedMechanisms);
+        chunkData.set(mechanismListKey, PersistentDataType.STRING, mechanismsString);
+        chunkData.set(mechanismCountKey, PersistentDataType.INTEGER, serializedMechanisms.size());
+
+        LogUtil.warn("Сохранено " + serializedMechanisms.size() + " " +
+                mechanismType.getGuiTitle() + " в чанк " +
+                chunk.getX() + ", " + chunk.getZ());
     }
 
     /**
-     * Загружаем все генераторы из чанка (при загрузке чанка)
+     * Очищает данные о механизмах в чанке
      */
-    public void loadGeneratorsFromChunk(Chunk chunk) {
-        // Это сложнее, так как нам нужно перебрать все возможные ключи
-        // Мы не можем просто получить список всех ключей из PDC :(
-        // Поэтому мы будем загружать генераторы по мере необходимости
-        // или хранить отдельный список местоположений всех генераторов
+    private void clearChunkMechanismData(Chunk chunk) {
+        PersistentDataContainer chunkData = chunk.getPersistentDataContainer();
+        chunkData.remove(mechanismCountKey);
+        chunkData.remove(mechanismListKey);
     }
 
     /**
-     * Получаем генератор по блоку
+     * Загружает все механизмы из всех загруженных чанков
      */
-//    public Generator getGenerator(Block block) {
-//        // Сначала проверяем кэш
-//        Generator generator = activeGenerators.get(block.getLocation());
-//        if (generator != null) {
-//            return generator;
-//        }
-//
-//        // Если нет в кэше, пробуем загрузить
-//        generator = loadGenerator(block, null);
-//        if (generator != null) {
-//            activeGenerators.put(block.getLocation(), generator);
-//        }
-//
-//        return generator;
-//    }
+    public void loadAllMechanismsFromLoadedChunks() {
+        for (World world : plugin.getServer().getWorlds()) {
+            for (Chunk chunk : world.getLoadedChunks()) {
+                loadMechanismsFromChunk(chunk);
+            }
+        }
+
+        LogUtil.info("Загружено всего " + activeMechanisms.size() + " " +
+                mechanismType.getGuiTitle());
+    }
+
+    // ========== УПРАВЛЕНИЕ КЭШЕМ ==========
 
     /**
-     * Создаем новый генератор
+     * Выгружает механизмы чанка из кэша
      */
-//    public void createGenerator(Block block, Player owner) {
-//        Generator generator = new Generator(block.getLocation(), owner);
-//        saveGenerator(generator);
-//    }
+    public void unloadChunkMechanisms(Chunk chunk) {
+        ChunkCoordinate chunkCoord = ChunkCoordinate.of(chunk);
+        Set<Location> chunkMechanisms = mechanismsByChunk.remove(chunkCoord);
+
+        if (chunkMechanisms != null) {
+            for (Location loc : chunkMechanisms) {
+                activeMechanisms.remove(loc);
+            }
+
+            LogUtil.warn("Выгружено " + chunkMechanisms.size() + " " +
+                    mechanismType.getGuiTitle() + " из чанка " +
+                    chunk.getX() + ", " + chunk.getZ());
+        }
+    }
 
     /**
-     * Получаем уникальный ключ для блока внутри чанка
+     * Добавляет механизм в индексы
+     */
+    public void addMechanismToIndex(T mechanism) {
+        Location loc = mechanism.getLocation();
+        ChunkCoordinate chunkCoord = ChunkCoordinate.of(loc);
+
+        activeMechanisms.put(loc, mechanism);
+        mechanismsByChunk.computeIfAbsent(chunkCoord, k -> new HashSet<>()).add(loc);
+    }
+
+    /**
+     * Удаляет механизм из индексов
+     */
+    protected void removeMechanismFromIndex(Location loc) {
+        activeMechanisms.remove(loc);
+
+        ChunkCoordinate chunkCoord = ChunkCoordinate.of(loc);
+        Set<Location> chunkMechanisms = mechanismsByChunk.get(chunkCoord);
+        if (chunkMechanisms != null) {
+            chunkMechanisms.remove(loc);
+            if (chunkMechanisms.isEmpty()) {
+                mechanismsByChunk.remove(chunkCoord);
+            }
+        }
+    }
+
+    // ========== ОСНОВНЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С МЕХАНИЗМАМИ ==========
+
+    /**
+     * Сохраняет механизм
+     */
+    public void saveMechanism(T mechanism) {
+        Location loc = mechanism.getLocation();
+        Chunk chunk = loc.getChunk();
+
+        if (!activeMechanisms.containsKey(loc)) {
+            addMechanismToIndex(mechanism);
+        }
+
+        saveMechanismsFromChunk(chunk);
+    }
+
+    /**
+     * Создает новый механизм
+     */
+    public T createMechanism(Location location, Player owner) {
+        T mechanism = createMechanismInstance(location, owner, 0, getDefaultCapacity(), true);
+        addMechanismToIndex(mechanism);
+        saveMechanismsFromChunk(location.getChunk());
+
+        plugin.getLogger().info("Создан новый " + mechanismType.getGuiTitle() +
+                " на " + location);
+        return mechanism;
+    }
+
+    /**
+     * Удаляет механизм
+     */
+    public void deleteMechanism(Location location) {
+        removeMechanismFromIndex(location);
+        saveMechanismsFromChunk(location.getChunk());
+
+        plugin.getLogger().info("Удален " + mechanismType.getGuiTitle() +
+                " с " + location);
+    }
+
+    /**
+     * Получает механизм по локации
+     */
+    public T getMechanism(Location location) {
+        return activeMechanisms.get(location);
+    }
+
+    /**
+     * Получает механизм по блоку
+     */
+    public T getMechanism(Block block) {
+        return getMechanism(block.getLocation());
+    }
+
+    /**
+     * Проверяет, является ли блок механизмом данного типа
+     */
+    public boolean isMechanism(Block block) {
+        return activeMechanisms.containsKey(block.getLocation());
+    }
+
+    /**
+     * Получает все активные механизмы
+     */
+    public Collection<T> getAllMechanisms() {
+        return activeMechanisms.values();
+    }
+
+    /**
+     * Получает все механизмы в указанном чанке
+     */
+    public Set<Location> getMechanismsInChunk(Chunk chunk) {
+        return mechanismsByChunk.getOrDefault(ChunkCoordinate.of(chunk), new HashSet<>());
+    }
+
+    /**
+     * Получает статистику по механизмам
+     */
+    public Map<String, Object> getStatistics() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total_" + mechanismType.name().toLowerCase(), activeMechanisms.size());
+        stats.put("total_chunks_with_" + mechanismType.name().toLowerCase(), mechanismsByChunk.size());
+        return stats;
+    }
+
+    /**
+     * Сохраняет все механизмы (при выключении сервера)
+     */
+    public void saveAllMechanisms() {
+        for (ChunkCoordinate chunkCoord : mechanismsByChunk.keySet()) {
+            World world = plugin.getServer().getWorld(chunkCoord.world());
+            if (world == null) continue;
+
+            Chunk chunk = world.getChunkAt(chunkCoord.x(), chunkCoord.z());
+            saveMechanismsFromChunk(chunk);
+        }
+
+        LogUtil.info("Сохранено " + activeMechanisms.size() + " " +
+                mechanismType.getGuiTitle());
+    }
+
+    /**
+     * Возвращает емкость по умолчанию для механизма
+     */
+    protected int getDefaultCapacity() {
+        return 1000; // Можно переопределить в наследниках
+    }
+
+    /**
+     * Получает уникальный ключ для блока внутри чанка (для обратной совместимости)
      */
     protected String getBlockKey(Block block) {
-        // Используем относительные координаты в чанке (0-15)
-        int relativeX = block.getX() & 0x0F; // Берем последние 4 бита
+        int relativeX = block.getX() & 0x0F;
         int relativeZ = block.getZ() & 0x0F;
         int y = block.getY();
 
-        return "gen_" + relativeX + "_" + y + "_" + relativeZ;
-    }
-
-    /**
-     * Получаем все активные генераторы
-     */
-    public Collection<BaseMechanism> getAllMechanisms() {
-        return activeMechanisms.values();
+        return mechanismType.name().toLowerCase() + "_" + relativeX + "_" + y + "_" + relativeZ;
     }
 }

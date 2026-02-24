@@ -1,0 +1,38 @@
+package org.example.artyom.magicMechanism.utils;
+
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+
+public class BlockUtil {
+    public static boolean isReplaceableBlock(Block block) {
+        Material type = block.getType();
+
+        // Список заменяемых блоков (можно дополнить)
+        return type == Material.AIR ||
+                type == Material.CAVE_AIR ||
+                type == Material.VOID_AIR ||
+                type == Material.WATER ||
+                type == Material.LAVA ||
+                type == Material.SHORT_GRASS ||
+                type == Material.TALL_GRASS ||
+                type == Material.FERN ||
+                type == Material.LARGE_FERN ||
+                type == Material.DEAD_BUSH ||
+                type == Material.VINE ||
+                type == Material.SNOW ||
+                type == Material.SNOW_BLOCK ||
+                type.name().contains("FLOWER") ||
+                type.name().contains("MUSHROOM") ||
+                type.name().contains("SAPLING") ||
+                type.name().endsWith("_CARPET") ||
+                type.name().endsWith("_PLANT") ||
+                type.name().contains("TORCH") ||
+                type == Material.REDSTONE_WIRE ||
+                type == Material.TRIPWIRE ||
+                type == Material.LEVER ||
+                type == Material.STONE_BUTTON ||
+                type == Material.OAK_BUTTON ||
+                type == Material.REPEATER ||
+                type == Material.COMPARATOR;
+    }
+}

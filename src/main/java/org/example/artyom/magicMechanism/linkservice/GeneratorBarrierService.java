@@ -55,7 +55,7 @@ public class GeneratorBarrierService extends BukkitRunnable {
             PersistentDataContainer pdc = ((TileState) block.getState()).getPersistentDataContainer();
 
             // Получаем текущую накопленную энергию
-            Barrier barrier = barrierManager.getBarrier(block);
+            Barrier barrier = barrierManager.getMechanism(block);
 
             int stored = barrier.getEnergyLevel();
             int maxStorage = barrier.getCapacity();
@@ -165,7 +165,7 @@ public class GeneratorBarrierService extends BukkitRunnable {
 
         switch (type) {
             case BARRIER:
-                Barrier barrier = barrierManager.getBarrier(block);
+                Barrier barrier = barrierManager.getMechanism(block);
                 int stored = barrier.getEnergyLevel();
                 int maxStorage = barrier.getCapacity();
                 return stored < maxStorage;

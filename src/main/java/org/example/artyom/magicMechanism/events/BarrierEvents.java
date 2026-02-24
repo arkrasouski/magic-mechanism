@@ -1,6 +1,5 @@
 package org.example.artyom.magicMechanism.events;
 
-import org.apache.commons.logging.Log;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -54,7 +53,7 @@ import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayer
 
 
 public class BarrierEvents extends BaseMechanismEvents {
-
+    BarrierManager barrierManager;
     BarrierInventory barrierInventory;
     DatabaseManager databaseManager;
 
@@ -62,14 +61,15 @@ public class BarrierEvents extends BaseMechanismEvents {
         super(plugin, barrierManager, MechanismType.BARRIER);
         this.databaseManager = db;
         this.barrierInventory = new BarrierInventory();
+        this.barrierManager = barrierManager;
     }
     @EventHandler(ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         Block clicked = e.getClickedBlock(); // может быть null [web:41]
         if (clicked == null) return;
-        if(mechanismManager instanceof BarrierManager barrierManager) {
-            Barrier barrier = barrierManager.getBarrier(clicked);
+
+        Barrier barrier = barrierManager.createMechanism(clicked.getLocation(), e.getPlayer());
 
         if (barrier != null) {
 
@@ -90,7 +90,7 @@ public class BarrierEvents extends BaseMechanismEvents {
 
             }
 
-    }
+
     }
 
     @EventHandler
@@ -131,15 +131,15 @@ public class BarrierEvents extends BaseMechanismEvents {
         int slot = e.getSlot(); // индекс в верхнем инвентаре
         Location loc = h.getLocation();
         Block b = loc.getBlock();
-        if(mechanismManager instanceof BarrierManager barrierManager) {
-            Barrier barrier = barrierManager.getBarrier(b);
-            if (barrier == null) return;
-            if (e.getRawSlot() >= barrierInventory.getSize()) return;
 
-            if (barrierInventory.isBlocked(slot)) {
-                e.setCancelled(true);
-            }
+        Barrier barrier = barrierManager.getMechanism(b);
+        if (barrier == null) return;
+        if (e.getRawSlot() >= barrierInventory.getSize()) return;
+
+        if (barrierInventory.isBlocked(slot)) {
+            e.setCancelled(true);
         }
+
     }
 
     @EventHandler
@@ -150,8 +150,8 @@ public class BarrierEvents extends BaseMechanismEvents {
         if (!(top.getHolder() instanceof MechanismHolder h)) return;
         Location loc = h.getLocation();
         Block b = loc.getBlock();
-        if(mechanismManager instanceof BarrierManager barrierManager) {
-            Barrier barrier = barrierManager.getBarrier(b);
+
+            Barrier barrier = barrierManager.getMechanism(b);
             if (barrier == null) return;
             ItemStack stack = e.getCurrentItem();
             if (stack == null || !stack.hasItemMeta()) return;
@@ -160,8 +160,8 @@ public class BarrierEvents extends BaseMechanismEvents {
             if (!(e.getWhoClicked() instanceof Player player)) return;
 
             handleBarrierMenuAction(e, player, h, action);
-            }
-        }
+    }
+
     private void handleBarrierMenuAction(InventoryClickEvent e, Player player, MechanismHolder h, MenuAction action) {
         LogUtil.warn(action.toString());
         switch (action) {
@@ -317,9 +317,9 @@ public class BarrierEvents extends BaseMechanismEvents {
         Location loc = h.getLocation();
         Block block = loc.getBlock();
         BlockState bs = block.getState();
-        if (!(bs instanceof TileState tile)) return;
-        if(mechanismManager instanceof BarrierManager barrierManager) {
-            Barrier barrier = barrierManager.getBarrier(block);
+        if (!(bs instanceof TileState)) return;
+
+            Barrier barrier = barrierManager.getMechanism(block);
             if (barrier != null) {
                 int buf = barrier.getEnergyLevel();
                 double energyPercent = (double) (buf * 100) / barrier.getCapacity();
@@ -335,7 +335,7 @@ public class BarrierEvents extends BaseMechanismEvents {
                 mainHolder.setInventory(mainInventory);
                 player.openInventory(mainInventory);
             }
-        }
+
     }
     private void removePlayer( Player player, MechanismHolder h){
             if(h instanceof EditPlayerHolder eph){
@@ -366,8 +366,8 @@ public class BarrierEvents extends BaseMechanismEvents {
         if (e.getAction() != InventoryAction.MOVE_TO_OTHER_INVENTORY) return;
         Location loc = h.getLocation();
         Block b = loc.getBlock();
-        if (mechanismManager instanceof BarrierManager barrierManager) {
-            Barrier barrier = barrierManager.getBarrier(b);
+
+            Barrier barrier = barrierManager.getMechanism(b);
             if (barrier != null) return;
             int topSize = top.getSize();
 
@@ -406,6 +406,6 @@ public class BarrierEvents extends BaseMechanismEvents {
 
             });
         }
-    }
-
 }
+
+
