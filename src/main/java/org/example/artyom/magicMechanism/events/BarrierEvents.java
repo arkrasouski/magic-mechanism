@@ -60,8 +60,7 @@ import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayer
 import static org.example.artyom.magicMechanism.data.enums.barrier.BarrierPlayerSettingsMenuActions.PLAYER_SETTINGS_DENY_CHEST;
 
 
-public class BarrierEvents extends BaseMechanismEvents {
-    BarrierManager barrierManager;
+public class BarrierEvents extends BaseMechanismEvents<Barrier, BarrierManager> {
     BarrierInventory barrierInventory;
     DatabaseManager databaseManager;
 
@@ -69,144 +68,6 @@ public class BarrierEvents extends BaseMechanismEvents {
         super(plugin, barrierManager, MechanismType.BARRIER);
         this.databaseManager = db;
         this.barrierInventory = new BarrierInventory();
-        this.barrierManager = barrierManager;
-    }
-    @EventHandler
-    public void onGeneratorPlace(BlockPlaceEvent event) {
-        Block block = event.getBlock();
-        Player player = event.getPlayer();
-        ItemStack item = event.getItemInHand();
-
-        LogUtil.warn("========== ПОПЫТКА УСТАНОВКИ ГЕНЕРАТОРА ==========");
-        LogUtil.warn("1. Игрок: " + player.getName());
-        LogUtil.warn("2. Блок: " + block.getType() + " на " + block.getLocation());
-        LogUtil.warn("3. Предмет в руке: " + (item != null ? item.getType() : "null"));
-
-        // ШАГ 1: Проверка предмета
-        if (item == null) {
-            LogUtil.warn("❌ ШАГ 1: item == null");
-            return;
-        }
-
-        if (!item.hasItemMeta()) {
-            LogUtil.warn("❌ ШАГ 1: item.hasItemMeta() = false");
-            return;
-        }
-
-        // ШАГ 2: Проверка на генератор
-        if (!isBarrierItem(item)) {
-            LogUtil.warn("❌ ШАГ 2: isGeneratorItem() = false");
-
-            // Дополнительно: покажем, что лежит в PDC
-            String type = item.getItemMeta()
-                    .getPersistentDataContainer()
-                    .get(Keys.MACHINE_TYPE, PersistentDataType.STRING);
-            LogUtil.warn("    Тип в PDC предмета: " + type);
-            return;
-        }
-        LogUtil.warn("✅ ШАГ 2: isGeneratorItem() = true");
-
-        // ШАГ 3: Проверка места установки
-        if (!canPlaceGenerator(block, player)) {
-            LogUtil.warn("❌ ШАГ 3: canPlaceGenerator() = false");
-            LogUtil.warn("    isMechanism: " + barrierManager.isMechanism(block));
-            LogUtil.warn("    block type: " + block.getType());
-            LogUtil.warn("    isReplaceable: " + BlockUtil.isReplaceableBlock(block));
-            event.setCancelled(true);
-            player.sendMessage("§cНельзя установить генератор здесь!");
-            return;
-        }
-        LogUtil.warn("✅ ШАГ 3: canPlaceGenerator() = true");
-
-        // ШАГ 4: Создание через менеджер
-        LogUtil.warn("ШАГ 4: Вызов generatorManager.createMechanism()");
-        LogUtil.warn("    generatorManager класс: " + barrierManager.getClass().getSimpleName());
-
-        Barrier barrier = barrierManager.createMechanism(block.getLocation(), player);
-
-        if (barrier == null) {
-            LogUtil.warn("❌ ШАГ 4: generatorManager.createMechanism() вернул null!");
-            event.setCancelled(true);
-            player.sendMessage("§cОшибка при создании генератора!");
-            return;
-        }
-        LogUtil.warn("✅ ШАГ 4: Генератор создан, класс: " + barrier.getClass().getSimpleName());
-        LogUtil.warn("    Тип генератора: " + barrier.getMechanismType().name());
-        LogUtil.warn("    Энергия: " + barrier.getEnergyLevel());
-
-        // ШАГ 5: Сообщение игроку
-        player.sendMessage("§a✓ Генератор успешно установлен!");
-        LogUtil.warn("✅ ШАГ 5: Сообщение отправлено");
-
-        // ШАГ 6: Визуальный эффект
-        spawnPlaceEffect(block);
-        LogUtil.warn("✅ ШАГ 6: Эффект спавна");
-
-        LogUtil.warn("========== ГЕНЕРАТОР УСПЕШНО УСТАНОВЛЕН ==========");
-    }
-
-    private boolean isBarrierItem(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
-        // Проверка на наличие метки генератора
-        return item.getItemMeta().getPersistentDataContainer()
-                .has(new NamespacedKey(plugin, "barrier_item"), PersistentDataType.BOOLEAN);
-    }
-
-    private boolean canPlaceGenerator(Block block, Player player) {
-        // Проверка на пустой блок
-        if (block.getType() != Material.AIR && BlockUtil.isReplaceableBlock(block)) {
-            return false;
-        }
-
-        // Проверка на наличие другого генератора
-        if (barrierManager.isMechanism(block)) {
-            return false;
-        }
-
-        // Проверка прав
-        return player.hasPermission("generator.place");
-    }
-
-    private boolean canBreakGenerator(Barrier barrier, Player player) {
-        // Владелец всегда может сломать
-        if (barrier.getOwner() != null && barrier.getOwner().equals(player)) {
-            return true;
-        }
-
-        // Админы могут ломать чужие
-        return player.hasPermission("generator.break.others");
-    }
-
-    private boolean shouldDropGenerator() {
-        return plugin.getConfig().getBoolean("generator.drop-on-break", true);
-    }
-
-    private ItemStack createGeneratorItem() {
-        // Создание предмета генератора
-        ItemStack item = new ItemStack(this.mechanismType.getMaterial());
-        // ... настройка метаданных
-        return item;
-    }
-
-    private void openGeneratorGUI(Player player, Generator generator) {
-        // Открытие GUI
-        player.sendMessage("§6Энергия: " + generator.getEnergyLevel() +
-                "/" + generator.getCapacity());
-        // Здесь открытие инвентаря
-    }
-
-    private void spawnPlaceEffect(Block block) {
-        block.getWorld().playSound(block.getLocation(),
-                org.bukkit.Sound.BLOCK_BEACON_ACTIVATE, 0.5f, 1.5f);
-        block.getWorld().spawnParticle(org.bukkit.Particle.PORTAL,
-                block.getLocation().add(0.5, 1, 0.5), 20, 0.3, 0.3, 0.3, 0.1);
-    }
-
-    private void spawnBreakEffect(Block block) {
-        block.getWorld().playSound(block.getLocation(),
-                org.bukkit.Sound.BLOCK_BEACON_DEACTIVATE, 0.5f, 0.5f);
-        block.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION,
-                block.getLocation().add(0.5, 0.5, 0.5), 1);
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -215,7 +76,7 @@ public class BarrierEvents extends BaseMechanismEvents {
         Block clicked = e.getClickedBlock(); // может быть null [web:41]
         if (clicked == null) return;
 
-        Barrier barrier = barrierManager.getMechanism(clicked);
+        Barrier barrier = mechanismManager.getMechanism(clicked);
 
         if (barrier != null) {
 
@@ -269,39 +130,7 @@ public class BarrierEvents extends BaseMechanismEvents {
             MechanismStorage.saveItems(tile, e.getView().getTopInventory(), saveKey);
         }
     }
-    @EventHandler
-    public void onBlockBreak(BlockBreakEvent event) {
-        Block block = event.getBlock();
-        Player player = event.getPlayer();
 
-            // Проверяем, является ли сломанный блок генератором
-            if (barrierManager.getMechanism(block) != null) {
-                // Удаляем генератор
-               barrierManager.deleteMechanism(block.getLocation());
-
-                ItemStack tool = player.getInventory().getItemInMainHand();
-                if (!ToolUtil.canBreakWithTool(player, tool)) {
-                    event.setCancelled(true);
-                    player.sendMessage("§c" + mechanismType.getGuiTitle() + " можно сломать только киркой!");
-                    return;
-                }
-                event.getPlayer().sendMessage("§cГенератор разрушен!");
-                // Отменяем обычный дроп
-                event.setDropItems(false);
-                if (block.getState() instanceof Container cont) {
-                    cont.getInventory().clear();
-                    cont.update(true);
-                }
-                // Удаляем блок
-                block.setType(Material.AIR);
-
-                // Дропаем предмет генератора
-                ItemStack generatorItem = new GeneratorItem(plugin).createItem(1);
-                //ItemStack mechanismItem = this.mechanismItem.createItem(1); // но с данными блока!
-                block.getWorld().dropItemNaturally(block.getLocation(), generatorItem);
-            }
-
-    }
     @EventHandler
     public void onClickBarrierInventory(InventoryClickEvent e) {
         Inventory top = e.getView().getTopInventory();
@@ -310,7 +139,7 @@ public class BarrierEvents extends BaseMechanismEvents {
         Location loc = h.getLocation();
         Block b = loc.getBlock();
 
-        Barrier barrier = barrierManager.getMechanism(b);
+        Barrier barrier = mechanismManager.getMechanism(b);
         if (barrier == null) return;
         if (e.getRawSlot() >= barrierInventory.getSize()) return;
 
@@ -329,7 +158,7 @@ public class BarrierEvents extends BaseMechanismEvents {
         Location loc = h.getLocation();
         Block b = loc.getBlock();
 
-            Barrier barrier = barrierManager.getMechanism(b);
+            Barrier barrier = mechanismManager.getMechanism(b);
             if (barrier == null) return;
             ItemStack stack = e.getCurrentItem();
             if (stack == null || !stack.hasItemMeta()) return;
@@ -497,7 +326,7 @@ public class BarrierEvents extends BaseMechanismEvents {
         BlockState bs = block.getState();
         if (!(bs instanceof TileState)) return;
 
-            Barrier barrier = barrierManager.getMechanism(block);
+            Barrier barrier = mechanismManager.getMechanism(block);
             if (barrier != null) {
                 int buf = barrier.getEnergyLevel();
                 double energyPercent = (double) (buf * 100) / barrier.getCapacity();
@@ -545,7 +374,7 @@ public class BarrierEvents extends BaseMechanismEvents {
         Location loc = h.getLocation();
         Block b = loc.getBlock();
 
-            Barrier barrier = barrierManager.getMechanism(b);
+            Barrier barrier = mechanismManager.getMechanism(b);
             if (barrier != null) return;
             int topSize = top.getSize();
 

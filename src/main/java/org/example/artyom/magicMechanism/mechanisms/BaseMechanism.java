@@ -13,7 +13,7 @@ import org.example.artyom.magicMechanism.data.enums.MechanismType;
 public abstract class BaseMechanism {
 
     protected final Location location;
-    protected MechanismType mechanismType;
+    protected static MechanismType mechanismType;
     protected  Player owner;
     protected  boolean isActive;
     protected  int energyLevel;
@@ -66,7 +66,7 @@ public abstract class BaseMechanism {
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
     public Player getOwner() { return owner; }
-    public MechanismType getMechanismType() {return this.mechanismType;}
+    public MechanismType getMechanismType() {return mechanismType;};
     public int getFrequency() {return frequency;}
     public int getFreqSpeed() {return freqSpeed;}
 

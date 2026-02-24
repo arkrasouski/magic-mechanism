@@ -51,5 +51,8 @@ public class Generator extends BaseMechanism {
             BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN
     };
 
-
+    @Override
+    public MechanismType getMechanismType() {
+        return MechanismType.GENERATOR;
+    }
 }

@@ -36,190 +36,16 @@ import org.example.artyom.magicMechanism.utils.BlockUtil;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 import org.example.artyom.magicMechanism.utils.ToolUtil;
 
-public class GeneratorEvents extends BaseMechanismEvents {
+public class GeneratorEvents extends BaseMechanismEvents<Generator, GeneratorManager> {
 
  private GeneratorGuiManager guiManager;
  private GenInventory genInventory;
- private GeneratorManager generatorManager;
 public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager, GeneratorGuiManager guiManager){//, GeneratorCellService genService, GenInventory genInventory) {
     super(plugin, generatorManager, MechanismType.GENERATOR);
-    this.generatorManager = generatorManager;
     this.guiManager = guiManager;
     this.genInventory = new GenInventory();
 }
-    @EventHandler
-    public void onGeneratorPlace(BlockPlaceEvent event) {
-        Block block = event.getBlock();
-        Player player = event.getPlayer();
-        ItemStack item = event.getItemInHand();
 
-        LogUtil.warn("========== ПОПЫТКА УСТАНОВКИ ГЕНЕРАТОРА ==========");
-        LogUtil.warn("1. Игрок: " + player.getName());
-        LogUtil.warn("2. Блок: " + block.getType() + " на " + block.getLocation());
-        LogUtil.warn("3. Предмет в руке: " + (item != null ? item.getType() : "null"));
-
-        // ШАГ 1: Проверка предмета
-        if (item == null) {
-            LogUtil.warn("❌ ШАГ 1: item == null");
-            return;
-        }
-
-        if (!item.hasItemMeta()) {
-            LogUtil.warn("❌ ШАГ 1: item.hasItemMeta() = false");
-            return;
-        }
-
-        // ШАГ 2: Проверка на генератор
-        if (!isGeneratorItem(item)) {
-            LogUtil.warn("❌ ШАГ 2: isGeneratorItem() = false");
-
-            // Дополнительно: покажем, что лежит в PDC
-            String type = item.getItemMeta()
-                    .getPersistentDataContainer()
-                    .get(Keys.MACHINE_TYPE, PersistentDataType.STRING);
-            LogUtil.warn("    Тип в PDC предмета: " + type);
-            return;
-        }
-        LogUtil.warn("✅ ШАГ 2: isGeneratorItem() = true");
-
-        // ШАГ 3: Проверка места установки
-        if (!canPlaceGenerator(block, player)) {
-            LogUtil.warn("❌ ШАГ 3: canPlaceGenerator() = false");
-            LogUtil.warn("    isMechanism: " + generatorManager.isMechanism(block));
-            LogUtil.warn("    block type: " + block.getType());
-            LogUtil.warn("    isReplaceable: " + BlockUtil.isReplaceableBlock(block));
-            event.setCancelled(true);
-            player.sendMessage("§cНельзя установить генератор здесь!");
-            return;
-        }
-        LogUtil.warn("✅ ШАГ 3: canPlaceGenerator() = true");
-
-        // ШАГ 4: Создание через менеджер
-        LogUtil.warn("ШАГ 4: Вызов generatorManager.createMechanism()");
-        LogUtil.warn("    generatorManager класс: " + generatorManager.getClass().getSimpleName());
-
-        Generator generator = generatorManager.createMechanism(block.getLocation(), player);
-
-        if (generator == null) {
-            LogUtil.warn("❌ ШАГ 4: generatorManager.createMechanism() вернул null!");
-            event.setCancelled(true);
-            player.sendMessage("§cОшибка при создании генератора!");
-            return;
-        }
-        LogUtil.warn("✅ ШАГ 4: Генератор создан, класс: " + generator.getClass().getSimpleName());
-        LogUtil.warn("    Тип генератора: " + generator.getMechanismType().name());
-        LogUtil.warn("    Энергия: " + generator.getEnergyLevel());
-
-        // ШАГ 5: Сообщение игроку
-        player.sendMessage("§a✓ Генератор успешно установлен!");
-        LogUtil.warn("✅ ШАГ 5: Сообщение отправлено");
-
-        // ШАГ 6: Визуальный эффект
-        spawnPlaceEffect(block);
-        LogUtil.warn("✅ ШАГ 6: Эффект спавна");
-
-        LogUtil.warn("========== ГЕНЕРАТОР УСПЕШНО УСТАНОВЛЕН ==========");
-    }
-    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
-
-    private boolean isGeneratorItem(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
-
-        // Проверка на наличие метки генератора
-        return item.getItemMeta().getPersistentDataContainer()
-                .has(new NamespacedKey(plugin, "generator_item"), PersistentDataType.BOOLEAN);
-    }
-
-    private boolean canPlaceGenerator(Block block, Player player) {
-        // Проверка на пустой блок
-        if (block.getType() != Material.AIR && BlockUtil.isReplaceableBlock(block)) {
-            return false;
-        }
-
-        // Проверка на наличие другого генератора
-        if (generatorManager.isMechanism(block)) {
-            return false;
-        }
-
-        // Проверка прав
-        return player.hasPermission("generator.place");
-    }
-
-    private boolean canBreakGenerator(Generator generator, Player player) {
-        // Владелец всегда может сломать
-        if (generator.getOwner() != null && generator.getOwner().equals(player)) {
-            return true;
-        }
-
-        // Админы могут ломать чужие
-        return player.hasPermission("generator.break.others");
-    }
-
-    private boolean shouldDropGenerator() {
-        return plugin.getConfig().getBoolean("generator.drop-on-break", true);
-    }
-
-    private ItemStack createGeneratorItem() {
-        // Создание предмета генератора
-        ItemStack item = new ItemStack(this.mechanismType.getMaterial());
-        // ... настройка метаданных
-        return item;
-    }
-
-    private void openGeneratorGUI(Player player, Generator generator) {
-        // Открытие GUI
-        player.sendMessage("§6Энергия: " + generator.getEnergyLevel() +
-                "/" + generator.getCapacity());
-        // Здесь открытие инвентаря
-    }
-
-    private void spawnPlaceEffect(Block block) {
-        block.getWorld().playSound(block.getLocation(),
-                org.bukkit.Sound.BLOCK_BEACON_ACTIVATE, 0.5f, 1.5f);
-        block.getWorld().spawnParticle(org.bukkit.Particle.PORTAL,
-                block.getLocation().add(0.5, 1, 0.5), 20, 0.3, 0.3, 0.3, 0.1);
-    }
-
-    private void spawnBreakEffect(Block block) {
-        block.getWorld().playSound(block.getLocation(),
-                org.bukkit.Sound.BLOCK_BEACON_DEACTIVATE, 0.5f, 0.5f);
-        block.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION,
-                block.getLocation().add(0.5, 0.5, 0.5), 1);
-    }
-
-    @EventHandler
-    public void onBlockBreak(BlockBreakEvent event) {
-        Block block = event.getBlock();
-        Player player = event.getPlayer();
-        if (mechanismManager instanceof GeneratorManager generatorManager) {
-            // Проверяем, является ли сломанный блок генератором
-            if (generatorManager.getMechanism(block) != null) {
-                // Удаляем генератор
-                generatorManager.deleteMechanism(block.getLocation());
-
-                ItemStack tool = player.getInventory().getItemInMainHand();
-                if (!ToolUtil.canBreakWithTool(player, tool)) {
-                    event.setCancelled(true);
-                    player.sendMessage("§c" + mechanismType.getGuiTitle() + " можно сломать только киркой!");
-                    return;
-                }
-                event.getPlayer().sendMessage("§cГенератор разрушен!");
-                // Отменяем обычный дроп
-                event.setDropItems(false);
-                if (block.getState() instanceof Container cont) {
-                    cont.getInventory().clear();
-                    cont.update(true);
-                }
-                // Удаляем блок
-                block.setType(Material.AIR);
-
-                // Дропаем предмет генератора
-                ItemStack generatorItem = new GeneratorItem(plugin).createItem(1);
-                //ItemStack mechanismItem = this.mechanismItem.createItem(1); // но с данными блока!
-                block.getWorld().dropItemNaturally(block.getLocation(), generatorItem);
-            }
-        }
-    }
 @EventHandler
 public void onOpen(InventoryOpenEvent e) {
     if (!(e.getInventory().getHolder() instanceof MechanismHolder h)) return;
@@ -446,27 +272,5 @@ public void onClose(InventoryCloseEvent e) {
     }
     }
 
-    @EventHandler
-    public void onChunkLoad(ChunkLoadEvent event) {
-        Chunk chunk = event.getChunk();
-
-        // Загружаем генераторы из чанка
-        generatorManager.loadMechanismsFromChunk(chunk);
-
-       //LogUtil.warn("Чанк загружен: " + chunk.getX() + ", " + chunk.getZ());
-    }
-
-    @EventHandler
-    public void onChunkUnload(ChunkUnloadEvent event) {
-        Chunk chunk = event.getChunk();
-
-        // Сохраняем генераторы перед выгрузкой
-        generatorManager.saveMechanismsFromChunk(chunk);
-
-        // Очищаем кэш
-        generatorManager.unloadChunkMechanisms(chunk);
-
-       //LogUtil.warn("Чанк выгружен: " + chunk.getX() + ", " + chunk.getZ());
-    }
 
 }

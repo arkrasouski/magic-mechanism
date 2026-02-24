@@ -14,7 +14,7 @@ import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class BaseMechanismItem {
+public class BaseMechanismItem {
     private final MagicMechanism plugin;
     private final MechanismType mechanismType;
     private NamespacedKey generatorKey;
