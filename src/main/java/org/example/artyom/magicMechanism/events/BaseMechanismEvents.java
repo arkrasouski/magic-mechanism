@@ -37,29 +37,29 @@ public class BaseMechanismEvents implements Listener {
         this.mechanismType = mechanismType;
     }
 
-    @EventHandler
-    public void onBlockPlace(BlockPlaceEvent event) {
-        Block block = event.getBlock();
-        Player player = event.getPlayer();
-
-        // Проверяем, является ли поставленный блок генератором
-        if (block.getType() == mechanismType.getMaterial()) {
-            // Создаем новый генератор
-            if(mechanismManager instanceof GeneratorManager generatorManager) {
-                generatorManager.createGenerator(block, player);
-                Generator generator = generatorManager.getGenerator(block);
-                generator.setMechanismBlock(block);
-                player.sendMessage("§aГенератор установлен!");
-            } else if(mechanismManager instanceof BarrierManager barrierManager) {
-                barrierManager.createBarrier(block, player);
-                Barrier barrier = barrierManager.getBarrier(block);
-                barrier.setMechanismBlock(block);
-                player.sendMessage("§aБарьер установлен!");
-
-            }
-
-        }
-    }
+//    @EventHandler
+//    public void onBlockPlace(BlockPlaceEvent event) {
+//        Block block = event.getBlock();
+//        Player player = event.getPlayer();
+//
+//        // Проверяем, является ли поставленный блок генератором
+//        if (block.getType() == mechanismType.getMaterial()) {
+//            // Создаем новый генератор
+//            if(mechanismManager instanceof GeneratorManager generatorManager) {
+//                Generator generator = generatorManager.createGenerator(block, player);
+//
+//                generator.setMechanismBlock(block);
+//                player.sendMessage("§aГенератор установлен!");
+//            } else if(mechanismManager instanceof BarrierManager barrierManager) {
+//                barrierManager.createBarrier(block, player);
+//                Barrier barrier = barrierManager.getBarrier(block);
+//                barrier.setMechanismBlock(block);
+//                player.sendMessage("§aБарьер установлен!");
+//
+//            }
+//
+//        }
+//    }
 
 
 

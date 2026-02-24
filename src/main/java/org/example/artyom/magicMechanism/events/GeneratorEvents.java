@@ -1,9 +1,6 @@
 package org.example.artyom.magicMechanism.events;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
@@ -13,8 +10,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
@@ -39,13 +39,134 @@ public class GeneratorEvents extends BaseMechanismEvents {
 
  private GeneratorGuiManager guiManager;
  private GenInventory genInventory;
-
+ private GeneratorManager generatorManager;
 public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager, GeneratorGuiManager guiManager){//, GeneratorCellService genService, GenInventory genInventory) {
     super(plugin, generatorManager, MechanismType.GENERATOR);
-
+    this.generatorManager = generatorManager;
     this.guiManager = guiManager;
     this.genInventory = new GenInventory();
 }
+    @EventHandler
+    public void onGeneratorPlace(BlockPlaceEvent event) {
+        Block block = event.getBlock();
+        Player player = event.getPlayer();
+        ItemStack item = event.getItemInHand();
+
+        // Проверяем, является ли предмет генератором
+        if (!isGeneratorItem(item)) return;
+
+        // Проверяем, можно ли ставить здесь
+        if (!canPlaceGenerator(block, player)) {
+            event.setCancelled(true);
+            player.sendMessage("§cНельзя установить генератор здесь!");
+            return;
+        }
+
+        // Создаем генератор через менеджер
+        Generator generator = new Generator(block.getLocation(), player);
+        generatorManager.addGeneratorToIndex(generator);
+
+        // Отправляем сообщение
+        player.sendMessage("§a✓ Генератор успешно установлен!");
+
+        // Визуальный эффект
+        spawnPlaceEffect(block);
+    }
+    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
+
+    private boolean isGeneratorItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        // Проверка на наличие метки генератора
+        return item.getItemMeta().getPersistentDataContainer()
+                .has(new NamespacedKey(plugin, "generator_item"), PersistentDataType.BOOLEAN);
+    }
+
+    private boolean canPlaceGenerator(Block block, Player player) {
+        // Проверка на пустой блок
+        if (block.getType() != Material.AIR && isReplaceableBlock(block)) {
+            return false;
+        }
+
+        // Проверка на наличие другого генератора
+        if (generatorManager.isGenerator(block)) {
+            return false;
+        }
+
+        // Проверка прав
+        return player.hasPermission("generator.place");
+    }
+    private boolean isReplaceableBlock(Block block) {
+        Material type = block.getType();
+
+        // Список заменяемых блоков (можно дополнить)
+        return type == Material.AIR ||
+                type == Material.CAVE_AIR ||
+                type == Material.VOID_AIR ||
+                type == Material.WATER ||
+                type == Material.LAVA ||
+                type == Material.SHORT_GRASS ||
+                type == Material.TALL_GRASS ||
+                type == Material.FERN ||
+                type == Material.LARGE_FERN ||
+                type == Material.DEAD_BUSH ||
+                type == Material.VINE ||
+                type == Material.SNOW ||
+                type == Material.SNOW_BLOCK ||
+                type.name().contains("FLOWER") ||
+                type.name().contains("MUSHROOM") ||
+                type.name().contains("SAPLING") ||
+                type.name().endsWith("_CARPET") ||
+                type.name().endsWith("_PLANT") ||
+                type.name().contains("TORCH") ||
+                type == Material.REDSTONE_WIRE ||
+                type == Material.TRIPWIRE ||
+                type == Material.LEVER ||
+                type == Material.STONE_BUTTON ||
+                type == Material.OAK_BUTTON ||
+                type == Material.REPEATER ||
+                type == Material.COMPARATOR;
+    }
+    private boolean canBreakGenerator(Generator generator, Player player) {
+        // Владелец всегда может сломать
+        if (generator.getOwner() != null && generator.getOwner().equals(player)) {
+            return true;
+        }
+
+        // Админы могут ломать чужие
+        return player.hasPermission("generator.break.others");
+    }
+
+    private boolean shouldDropGenerator() {
+        return plugin.getConfig().getBoolean("generator.drop-on-break", true);
+    }
+
+    private ItemStack createGeneratorItem() {
+        // Создание предмета генератора
+        ItemStack item = new ItemStack(this.mechanismType.getMaterial());
+        // ... настройка метаданных
+        return item;
+    }
+
+    private void openGeneratorGUI(Player player, Generator generator) {
+        // Открытие GUI
+        player.sendMessage("§6Энергия: " + generator.getEnergyLevel() +
+                "/" + generator.getCapacity());
+        // Здесь открытие инвентаря
+    }
+
+    private void spawnPlaceEffect(Block block) {
+        block.getWorld().playSound(block.getLocation(),
+                org.bukkit.Sound.BLOCK_BEACON_ACTIVATE, 0.5f, 1.5f);
+        block.getWorld().spawnParticle(org.bukkit.Particle.PORTAL,
+                block.getLocation().add(0.5, 1, 0.5), 20, 0.3, 0.3, 0.3, 0.1);
+    }
+
+    private void spawnBreakEffect(Block block) {
+        block.getWorld().playSound(block.getLocation(),
+                org.bukkit.Sound.BLOCK_BEACON_DEACTIVATE, 0.5f, 0.5f);
+        block.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION,
+                block.getLocation().add(0.5, 0.5, 0.5), 1);
+    }
 
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
@@ -305,23 +426,28 @@ public void onClose(InventoryCloseEvent e) {
         });
     }
     }
-//
-//
-//    @Override
-//    @EventHandler
-//    public void onPlace(BlockPlaceEvent e) {
-//        super.onPlace(e);
-//        Block block = e.getBlockPlaced();
-//        if(Generator.isGenerator(block)) {
-//            this.genService.registerGenerator(block);
-//        }
-//    }
-//
-//    @Override
-//    @EventHandler
-//    public void onBreak(BlockBreakEvent e) {
-//        super.onBreak(e);
-//        Block block = e.getBlock();
-//        this.genService.unregisterGenerator(block);
-//    }
+
+    @EventHandler
+    public void onChunkLoad(ChunkLoadEvent event) {
+        Chunk chunk = event.getChunk();
+
+        // Загружаем генераторы из чанка
+        generatorManager.loadGeneratorsFromChunk(chunk);
+
+       //LogUtil.warn("Чанк загружен: " + chunk.getX() + ", " + chunk.getZ());
+    }
+
+    @EventHandler
+    public void onChunkUnload(ChunkUnloadEvent event) {
+        Chunk chunk = event.getChunk();
+
+        // Сохраняем генераторы перед выгрузкой
+        generatorManager.saveGeneratorsFromChunk(chunk);
+
+        // Очищаем кэш
+        generatorManager.unloadChunkGenerators(chunk);
+
+       //LogUtil.warn("Чанк выгружен: " + chunk.getX() + ", " + chunk.getZ());
+    }
+
 }

@@ -9,11 +9,13 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
+import org.example.artyom.magicMechanism.data.records.ChunkCoordinate;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,6 +26,21 @@ public abstract class BaseManager {
     private final NamespacedKey activeKey;
     private final NamespacedKey ownerKey;
     private final MechanismType mechanismType;
+
+    private final Map<Location, BaseMechanism> mechanismsByLocation;
+
+    // Индекс по чанкам
+    private final Map<ChunkCoordinate, Set<Location>> mechanismsByChunk;
+
+    // Индекс по типу для быстрого доступа
+    private final Map<MechanismType, Set<Location>> mechanismsByType;
+
+    // Ключи для PDC
+    private final NamespacedKey mechanismsDataKey;
+    private final NamespacedKey mechanismsCountKey;
+
+
+
     // Кэш активных генераторов для быстрого доступа
     protected final Map<Location, BaseMechanism> activeMechanisms = new ConcurrentHashMap<>();
 
@@ -36,6 +53,12 @@ public abstract class BaseManager {
         this.activeKey = new NamespacedKey(plugin, mechanismType.name() + "_" + "_active");
         this.ownerKey = new NamespacedKey(plugin, mechanismType.name() + "_owner");
 
+        this.mechanismsByLocation = new ConcurrentHashMap<>();
+        this.mechanismsByChunk = new ConcurrentHashMap<>();
+        this.mechanismsByType = new ConcurrentHashMap<>();
+
+        this.mechanismsDataKey = new NamespacedKey(plugin, "mechanisms_data");
+        this.mechanismsCountKey = new NamespacedKey(plugin, "mechanisms_count");
     }
 
     /**

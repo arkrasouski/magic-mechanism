@@ -57,8 +57,11 @@ public final class MagicMechanism extends JavaPlugin {
         GeneratorCellService genService = new GeneratorCellService(guiManager, genManager);
         BarrierManager barrierManager = new BarrierManager(this);
         GeneratorBarrierService genBarrierService = new GeneratorBarrierService(this, genManager, barrierManager);
+        genManager.loadAllGeneratorsFromLoadedChunks();
 
-
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            genManager.saveAllGenerators();
+        }, 6000L, 6000L); // Каждые 5 минут
 
         getCommand("getgen").setExecutor(new GeneratorCommands(this));
         getCommand("givecell").setExecutor(new GeneratorCommands(this));
@@ -99,9 +102,7 @@ public final class MagicMechanism extends JavaPlugin {
         if (tickGuiTask != null) tickGuiTask.cancel();
         if (tickBarrierTask != null) tickBarrierTask.cancel();
         if (genManager != null) {
-            for (BaseMechanism generator : genManager.getAllMechanisms()) {
-                genManager.saveMechanism(generator);
-            }
+            genManager.saveAllGenerators();
         }
 
         getLogger().info("Плагин генераторов выключен!");
