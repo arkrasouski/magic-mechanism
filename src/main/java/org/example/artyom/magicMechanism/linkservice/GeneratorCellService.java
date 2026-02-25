@@ -64,7 +64,7 @@ public final class GeneratorCellService {
         // Обрабатываем активные генераторы
         for (Location loc : ACTIVE) {
             if (tickOne(loc)) {
-                anyChanges = true;
+                anyChanges = true; //Если хотя бы один генератор изменился, anyChanges = true
             }
         }
 

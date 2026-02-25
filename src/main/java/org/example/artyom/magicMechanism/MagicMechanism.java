@@ -31,11 +31,11 @@ public final class MagicMechanism extends JavaPlugin {
 
     private BukkitTask tickAllTask;
     private BukkitTask tickGuiTask;
-    private BukkitTask tickBarrierTask;
     private static MagicMechanism instance;
     private DatabaseManager databaseManager;
     private GeneratorBarrierService energyTicker;
     private GeneratorManager genManager;
+    private BarrierManager barrierManager;
     @Override
     public void onEnable() {
 
@@ -43,33 +43,57 @@ public final class MagicMechanism extends JavaPlugin {
         saveDefaultConfig();
         // Перезагружаем конфиг (на всякий случай)
         reloadConfig();
+
+
+
+
+
         // Plugin startup logic
         instance = this;
+
         Keys.init(this);
-        LogUtil.init(this);
-        LogUtil.info("Плагин загружен!");
+
+        //БД
         String password = getConfig().getString("database.password",
                 System.getenv("MYSQL_PASSWORD") != null ? System.getenv("MYSQL_PASSWORD") : "default");
         getLogger().info("Attempting to connect with password: " + password);
         databaseManager = new DatabaseManager("localhost", 3306, "minecraft", "spigot", "spig0tDBpass!");//password);//"spig0tDBpass!");
+
+        //Managers
         genManager = new GeneratorManager(this);
+        barrierManager = new BarrierManager(this);
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
+
+
+
+        //transfer
         GeneratorCellService genService = new GeneratorCellService(guiManager, genManager);
-        BarrierManager barrierManager = new BarrierManager(this);
         GeneratorBarrierService genBarrierService = new GeneratorBarrierService(this, genManager, barrierManager);
+
+
+        //load all mechanisms
         genManager.loadAllMechanismsFromLoadedChunks();
+        barrierManager.loadAllMechanismsFromLoadedChunks();
 
-        getServer().getScheduler().runTaskTimer(this, () -> {
-            genManager.saveAllMechanisms();
-        }, 6000L, 6000L); // Каждые 5 минут
-
+        //commands
         getCommand("getgen").setExecutor(new GeneratorCommands(this));
         getCommand("givecell").setExecutor(new GeneratorCommands(this));
         getCommand("getbarrier").setExecutor(new GeneratorCommands(this));
 
+        //events
         Bukkit.getPluginManager().registerEvents(new GeneratorEvents(this, genManager, guiManager), this);
         Bukkit.getPluginManager().registerEvents(new BarrierEvents(this, barrierManager, databaseManager), this);
 
+        LogUtil.info("Плагин загружен!");
+
+        //Сохраняем механизмы каждые 5 минут
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            genManager.saveAllMechanisms();
+            barrierManager.saveAllMechanisms();
+        }, 6000L, 6000L); // Каждые 5 минут
+
+
+        //Синхронизируем передачу внутри инвентаря генератора
         this.tickAllTask = Bukkit.getScheduler().runTaskTimer(
                 this,
                 () -> {
@@ -78,8 +102,8 @@ public final class MagicMechanism extends JavaPlugin {
                     }
                 }, 1L, 5L
         );
-//
-//        // 2) Обновление GUI: чаще, но только если нужно
+
+        //Передаем энергию из ячейки в генератор
         this.tickGuiTask = Bukkit.getScheduler().runTaskTimer(
                 this,
                 () -> {
@@ -88,6 +112,8 @@ public final class MagicMechanism extends JavaPlugin {
                     }
                 }, 20L, 20L
         );
+
+        //Передаем энергию из генератора барьеру
         energyTicker = new GeneratorBarrierService(this, genManager, barrierManager);
         energyTicker.runTaskTimer(this, 20L, 20L);
 
@@ -95,16 +121,22 @@ public final class MagicMechanism extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        //закрываем подключение к БД
         if (databaseManager != null) {
             databaseManager.close();
         }
+        //Закрываем задачу передачи энергии из ячейки в генератор
         if (tickAllTask != null) tickAllTask.cancel();
+        //Закрываем задачу передачи энергии из ячейки в генератор в инвентаре
         if (tickGuiTask != null) tickGuiTask.cancel();
-        if (tickBarrierTask != null) tickBarrierTask.cancel();
+        //Сохраняем генераторы
         if (genManager != null) {
             genManager.saveAllMechanisms();
         }
-
+        //Сохраняем барьеры
+        if(barrierManager != null) {
+            barrierManager.saveAllMechanisms();
+        }
         getLogger().info("Плагин генераторов выключен!");
     }
 

@@ -26,18 +26,19 @@ public class GeneratorBarrierService extends BukkitRunnable {
     private final int GENERATION_RATE = 5;
 
     private final Map<MechanismType, ConsumerHandler> consumerHandlers = new EnumMap<>(MechanismType.class);
-    private final List<MechanismType> consumers = new ArrayList<>();
+    //private final List<MechanismType> consumers = new ArrayList<>();
 
     public GeneratorBarrierService(MagicMechanism plugin, GeneratorManager generatorManager, BarrierManager barrierManager) {
         this.plugin = plugin;
         this.generatorManager = generatorManager;
         this.barrierManager = barrierManager;
 
-        consumers.add(MechanismType.BARRIER);
+        //consumers.add(MechanismType.BARRIER);
         registerHandlers();
     }
 
     private void registerHandlers() {
+        //привязка типа и обработчика для типа
         consumerHandlers.put(MechanismType.BARRIER, (block, energy) -> {
             Barrier barrier = barrierManager.getMechanism(block.getLocation());
 
@@ -63,6 +64,18 @@ public class GeneratorBarrierService extends BukkitRunnable {
         });
     }
 
+
+//    Для каждого генератора в мире:
+//
+//    Проверяет текущий уровень энергии
+//
+//    Если есть энергия (currentEnergy > 0):
+//
+//    Пытается передать её ближайшим потребителям
+//
+//    Сохраняет изменения в генераторе
+
+
     @Override
     public void run() {
         boolean anyEnergyTransferred = false;
@@ -83,7 +96,7 @@ public class GeneratorBarrierService extends BukkitRunnable {
             // Передаем энергию ТОЛЬКО если есть что передавать
             int currentEnergy = generator.getEnergyLevel();
             if (currentEnergy > 0) {
-                int energyTransferred = transferEnergyToNearbyConsumers(generator);
+                int energyTransferred = transferEnergyToNearbyConsumers(generator); //Проверка каждого блока - может ли он принять энергию
                 if (energyTransferred > 0) {
                     anyEnergyTransferred = true;
                     LogUtil.warn("Передано энергии: " + energyTransferred + ", осталось: " + generator.getEnergyLevel());
@@ -126,7 +139,7 @@ public class GeneratorBarrierService extends BukkitRunnable {
                     if (relativeBlock.getLocation().equals(loc)) continue;
 
                     // Проверяем, является ли блок потребителем
-                    ConsumerInfo consumer = getConsumerIfCanAccept(relativeBlock);
+                    ConsumerInfo consumer = getConsumerIfCanAccept(relativeBlock); //Проверка потребителей
                     if (consumer != null) {
                         availableConsumers.add(consumer);
                     }
@@ -169,12 +182,12 @@ public class GeneratorBarrierService extends BukkitRunnable {
         if (block == null) return null;
 
         Location loc = block.getLocation();
-
+        // Сейчас проверяет только барьеры:
         // Проверяем барьер
-        if (barrierManager.hasMechanism(loc)) {
+        if (barrierManager.hasMechanism(loc)) { //Спрашивает у BarrierManager: "Есть ли на этих координатах зарегистрированный барьер?"
             Barrier barrier = barrierManager.getMechanism(loc);
             if (barrier != null && barrier.getEnergyLevel() < barrier.getCapacity()) {
-                return new ConsumerInfo(block, MechanismType.BARRIER, consumerHandlers.get(MechanismType.BARRIER));
+                return new ConsumerInfo(block, MechanismType.BARRIER, consumerHandlers.get(MechanismType.BARRIER)); //Обработчик, который знает, как именно этот тип потребляет энергию
             }
         }
 
@@ -226,14 +239,14 @@ public class GeneratorBarrierService extends BukkitRunnable {
     }
 
     public void addConsumerType(MechanismType type, ConsumerHandler handler) {
-        consumers.add(type);
+        //consumers.add(type);
         if (handler != null) {
             consumerHandlers.put(type, handler);
         }
     }
 
     public void removeConsumerType(MechanismType type) {
-        consumers.remove(type);
+       // consumers.remove(type);
         consumerHandlers.remove(type);
     }
 
@@ -248,11 +261,11 @@ public class GeneratorBarrierService extends BukkitRunnable {
         ConsumerInfo(Block block, MechanismType type, ConsumerHandler handler) {
             this.block = block;
             this.type = type;
-            this.handler = handler;
+            this.handler = handler; //Обработчик, который знает, как именно этот тип потребляет энергию
         }
     }
 
-    @FunctionalInterface
+    @FunctionalInterface //Действие для механизма
     public interface ConsumerHandler {
         int consume(Block block, int energy);
     }
