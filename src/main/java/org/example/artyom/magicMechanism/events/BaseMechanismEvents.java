@@ -19,6 +19,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.items.BaseMechanismItem;
+import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.managers.BaseManager;
 
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
@@ -30,11 +31,13 @@ public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manag
     protected MagicMechanism plugin;
     protected final Manager mechanismManager;
     protected final MechanismType mechanismType;
+    protected final GeneratorBarrierService service;
 
-    public BaseMechanismEvents(MagicMechanism plugin, Manager mechanismManager, MechanismType mechanismType) {
+    public BaseMechanismEvents(MagicMechanism plugin, Manager mechanismManager, MechanismType mechanismType, GeneratorBarrierService service) {
         this.plugin = plugin;
         this.mechanismManager= mechanismManager;
         this.mechanismType = mechanismType;
+        this.service = service;
     }
 
     @EventHandler
@@ -60,7 +63,7 @@ public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manag
         }
         // ШАГ 5: Сообщение игроку
         player.sendMessage("§a✓ " + mechanismType.getGuiTitle() + " успешно установлен!");
-
+        service.onBlockChanged(block.getLocation());
         // ШАГ 6: Визуальный эффект
         spawnPlaceEffect(block);
     }
@@ -90,7 +93,7 @@ public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manag
                 }
                 // Удаляем блок
                 block.setType(Material.AIR);
-
+                service.onBlockChanged(block.getLocation());
                 // Дропаем предмет генератора
                 ItemStack mechanismItem = new BaseMechanismItem(plugin, mechanismType).createItem(1);
                 //ItemStack mechanismItem = this.mechanismItem.createItem(1); // но с данными блока!

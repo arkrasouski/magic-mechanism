@@ -8,10 +8,12 @@ import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.CableManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
+import org.example.artyom.magicMechanism.managers.NetworkManager;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
 import org.example.artyom.magicMechanism.mechanisms.Cable;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
+import org.example.artyom.magicMechanism.network.EnergyNetwork;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
 import java.util.*;
@@ -21,6 +23,7 @@ public class GeneratorBarrierService extends BukkitRunnable {
     private final MagicMechanism plugin;
     private final GeneratorManager generatorManager;
     private final BarrierManager barrierManager;
+    private final NetworkManager networkManager;
     private final int TRANSFER_RATE = 10;
     private final int GENERATION_RATE = 5;
     private final int CABLE_SEARCH_RADIUS = 10; // Радиус поиска кабелей
@@ -29,12 +32,12 @@ public class GeneratorBarrierService extends BukkitRunnable {
 
     //private final List<MechanismType> consumers = new ArrayList<>();
 
-    public GeneratorBarrierService(MagicMechanism plugin, GeneratorManager generatorManager, BarrierManager barrierManager, CableManager cableManager) {
+    public GeneratorBarrierService(MagicMechanism plugin, GeneratorManager generatorManager, BarrierManager barrierManager, CableManager cableManager, NetworkManager networkManager) {
         this.plugin = plugin;
         this.generatorManager = generatorManager;
         this.barrierManager = barrierManager;
         this.cableManager = cableManager;
-
+        this.networkManager = networkManager;
         //consumers.add(MechanismType.BARRIER);
         registerHandlers();
         LogUtil.info("GeneratorBarrierService инициализирован с поддержкой проводов");
@@ -84,40 +87,77 @@ public class GeneratorBarrierService extends BukkitRunnable {
         boolean anyEnergyTransferred = false;
 
         for (Generator generator : generatorManager.getAllMechanisms()) {
-
             int energyBefore = generator.getEnergyLevel();
-            LogUtil.warn("Генератор " + generator.getLocation() + " энергия до: " + energyBefore);
 
-            // Генерируем энергию ТОЛЬКО если не достигнут максимум
+            // Генерация энергии
             if (energyBefore < generator.getCapacity()) {
                 int newEnergy = Math.min(energyBefore + GENERATION_RATE, generator.getCapacity());
                 generator.setEnergyLevel(newEnergy);
-                LogUtil.warn("Сгенерирована энергия: " + (newEnergy - energyBefore) + ", теперь: " + newEnergy);
             }
 
-            // Передаем энергию ТОЛЬКО если есть что передавать
+            // Передача энергии
             int currentEnergy = generator.getEnergyLevel();
             if (currentEnergy > 0) {
-                int energyTransferred = transferEnergyThroughCables(generator); //Проверка каждого блока - может ли он принять энергию
-                if (energyTransferred > 0) {
-                    anyEnergyTransferred = true;
-                    LogUtil.warn("Передано энергии: " + energyTransferred + ", осталось: " + generator.getEnergyLevel());
+                // ✅ Проверяем валидность сети перед передачей
+                EnergyNetwork network = networkManager.getNetwork(generator.getLocation());
+
+                if (network != null && network.isValid()) {
+                    int energyTransferred = transferEnergyInNetwork(generator, network);
+                    if (energyTransferred > 0) {
+                        anyEnergyTransferred = true;
+                    }
+                } else {
+                    LogUtil.warn("Сеть невалидна или отсутствует для генератора " + generator.getLocation());
                 }
-            } else {
-                LogUtil.warn("Нет энергии для передачи");
             }
 
-            // Сохраняем только если энергия изменилась
+            // Сохранение
             if (energyBefore != generator.getEnergyLevel()) {
                 generatorManager.saveMechanism(generator);
             }
         }
-
-        if (anyEnergyTransferred) {
-            LogUtil.warn("Энергия передавалась в этом тике");
-        }
     }
+    private int transferEnergyInNetwork(Generator generator, EnergyNetwork network) {
+        Location generatorLoc = generator.getLocation();
+        int remainingEnergy = generator.getEnergyLevel();
+        int totalTransferred = 0;
 
+        // Получаем всех потребителей в сети
+        Set<Location> consumers = network.getConsumers();
+        Set<Location> processedConsumers = new HashSet<>();
+
+        for (Location consumerLoc : consumers) {
+            if (remainingEnergy <= 0) break;
+            if (processedConsumers.contains(consumerLoc)) continue;
+
+            // ✅ Проверяем, существует ли путь в текущей конфигурации
+            if (!network.canTransfer(generatorLoc, consumerLoc)) {
+                LogUtil.warn("Нет пути от генератора к потребителю " + consumerLoc);
+                continue;
+            }
+
+            // Проверяем, может ли потребитель принять энергию
+            Block consumerBlock = consumerLoc.getBlock();
+            ConsumerInfo consumer = getConsumerIfCanAccept(consumerBlock);
+
+            if (consumer != null) {
+                int energyToTransfer = Math.min(TRANSFER_RATE, remainingEnergy);
+                int usedEnergy = consumer.handler.consume(consumerBlock, energyToTransfer);
+
+                if (usedEnergy > 0) {
+                    generator.transferEnergy(usedEnergy);
+                    remainingEnergy -= usedEnergy;
+                    totalTransferred += usedEnergy;
+                    processedConsumers.add(consumerLoc);
+
+                    // Визуальный эффект
+                    spawnTransferEffect(generatorLoc, consumerLoc);
+                }
+            }
+        }
+
+        return totalTransferred;
+    }
     /**
      * Передает энергию потребителям
      * @return количество переданной энергии
@@ -178,6 +218,51 @@ public class GeneratorBarrierService extends BukkitRunnable {
 
         return totalTransferred;
     }
+
+    private boolean isValidConnection(Cable cable, Location consumerLoc, Location generatorLoc) {
+        Block cableBlock = cable.getLocation().getBlock();
+        Block consumerBlock = consumerLoc.getBlock();
+
+        // 1. Проверяем, что потребитель действительно adjacent к кабелю
+        if (!areBlocksAdjacent(cableBlock, consumerBlock)) {
+            LogUtil.warn("Потребитель не adjacent к кабелю");
+            return false;
+        }
+
+        // 2. Проверяем, что кабель все еще существует
+        if (!cableManager.isCable(cableBlock)) {
+            LogUtil.warn("Кабель больше не существует");
+            return false;
+        }
+
+        // 3. Проверяем, что потребитель все еще существует
+        if (barrierManager.getMechanism(consumerLoc) == null) {
+            LogUtil.warn("Потребитель больше не существует");
+            return false;
+        }
+
+        // 4. Проверяем, что генератор все еще существует
+        if (generatorManager.getMechanism(generatorLoc) == null) {
+            LogUtil.warn("Генератор больше не существует");
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean areBlocksAdjacent(Block cableBlock, Block consumerBlock) {
+        if (cableBlock == null || consumerBlock == null) return false;
+
+        int dx = Math.abs(cableBlock.getX() - consumerBlock.getX());
+        int dy = Math.abs(cableBlock.getY() - consumerBlock.getY());
+        int dz = Math.abs(cableBlock.getZ() - consumerBlock.getZ());
+
+        // Блоки adjacent если разница по одной оси = 1, а по остальным = 0
+        return (dx == 1 && dy == 0 && dz == 0) ||
+                (dx == 0 && dy == 1 && dz == 0) ||
+                (dx == 0 && dy == 0 && dz == 1);
+    }
+
     // Временный метод для проверки
     private void checkBarrierDistance(Location cableLoc) {
         LogUtil.warn("=== ПРОВЕРКА РАССТОЯНИЙ ДО БАРЬЕРОВ ===");
@@ -339,7 +424,9 @@ public class GeneratorBarrierService extends BukkitRunnable {
             this.handler = handler; //Обработчик, который знает, как именно этот тип потребляет энергию
         }
     }
-
+    public void onBlockChanged(Location location) {
+        networkManager.updateNetwork(location);
+    }
     @FunctionalInterface //Действие для механизма
     public interface ConsumerHandler {
         int consume(Block block, int energy);

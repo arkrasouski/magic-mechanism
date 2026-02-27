@@ -22,6 +22,7 @@ import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.CableManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
+import org.example.artyom.magicMechanism.managers.NetworkManager;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.example.artyom.magicMechanism.utils.LogUtil;
@@ -39,6 +40,7 @@ public final class MagicMechanism extends JavaPlugin {
     private GeneratorManager genManager;
     private BarrierManager barrierManager;
     private CableManager cableManager;
+    private NetworkManager networkManager;
     @Override
     public void onEnable() {
 
@@ -69,7 +71,7 @@ public final class MagicMechanism extends JavaPlugin {
         barrierManager = new BarrierManager(this);
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         cableManager = new CableManager(this);
-
+        networkManager = new NetworkManager(this);
 
         //transfer
         GeneratorCellService genService = new GeneratorCellService(guiManager, genManager);
@@ -80,6 +82,10 @@ public final class MagicMechanism extends JavaPlugin {
         genManager.loadAllMechanismsFromLoadedChunks();
         barrierManager.loadAllMechanismsFromLoadedChunks();
 
+        //Передаем энергию из генератора барьеру
+        energyTicker = new GeneratorBarrierService(this, genManager, barrierManager, cableManager, networkManager);
+        energyTicker.runTaskTimer(this, 20L, 20L);
+
         //commands
         getCommand("getgen").setExecutor(new GeneratorCommands(this));
         getCommand("givecell").setExecutor(new GeneratorCommands(this));
@@ -87,9 +93,9 @@ public final class MagicMechanism extends JavaPlugin {
         getCommand("getcable").setExecutor(new GeneratorCommands(this));
 
         //events
-        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(this, genManager, guiManager), this);
-        Bukkit.getPluginManager().registerEvents(new BarrierEvents(this, barrierManager, databaseManager), this);
-        Bukkit.getPluginManager().registerEvents(new CableEvents(this), this);
+        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(this, genManager, guiManager, energyTicker), this);
+        Bukkit.getPluginManager().registerEvents(new BarrierEvents(this, barrierManager, databaseManager, energyTicker), this);
+        Bukkit.getPluginManager().registerEvents(new CableEvents(this, energyTicker), this);
 
         LogUtil.info("Плагин загружен!");
 
@@ -120,9 +126,7 @@ public final class MagicMechanism extends JavaPlugin {
                 }, 20L, 20L
         );
 
-        //Передаем энергию из генератора барьеру
-        energyTicker = new GeneratorBarrierService(this, genManager, barrierManager, cableManager);
-        energyTicker.runTaskTimer(this, 20L, 20L);
+
 
     }
 

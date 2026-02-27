@@ -10,8 +10,6 @@ import org.bukkit.event.EventHandler;
 
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -38,6 +36,7 @@ import org.example.artyom.magicMechanism.inventories.barrier.BarrierInventory;
 import org.example.artyom.magicMechanism.inventories.barrier.holders.EditPlayerHolder;
 import org.example.artyom.magicMechanism.inventories.barrier.EditPlayerInventory;
 import org.example.artyom.magicMechanism.items.GeneratorItem;
+import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
@@ -65,8 +64,8 @@ public class BarrierEvents extends BaseMechanismEvents<Barrier, BarrierManager> 
     BarrierInventory barrierInventory;
     DatabaseManager databaseManager;
 
-    public BarrierEvents(MagicMechanism plugin, BarrierManager barrierManager, DatabaseManager db) {
-        super(plugin, barrierManager, MechanismType.BARRIER);
+    public BarrierEvents(MagicMechanism plugin, BarrierManager barrierManager, DatabaseManager db, GeneratorBarrierService service) {
+        super(plugin, barrierManager, MechanismType.BARRIER, service);
         this.databaseManager = db;
         this.barrierInventory = new BarrierInventory();
     }

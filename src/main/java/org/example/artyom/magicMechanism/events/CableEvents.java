@@ -12,21 +12,21 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.example.artyom.magicMechanism.MagicMechanism;
+import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.managers.CableManager;
-import org.example.artyom.magicMechanism.managers.EnergyManager;
 import org.example.artyom.magicMechanism.mechanisms.Cable;
 
 public class CableEvents implements Listener {
 
     private final CableManager cableManager;
     private final MagicMechanism plugin;
-    public CableEvents (MagicMechanism plugin) {
+    private final GeneratorBarrierService service;
+    public CableEvents (MagicMechanism plugin, GeneratorBarrierService service) {
         this.cableManager = new CableManager(plugin);
         this.plugin = plugin;
+        this.service = service;
     }
 
     @EventHandler
@@ -50,7 +50,7 @@ public class CableEvents implements Listener {
 
             // Обновляем соединения соседних кабелей
             cableManager.updateNeighborCables(block, player);
-
+            service.onBlockChanged(block.getLocation());
             // Сообщение игроку (опционально)
             player.sendMessage("§a[Сеть] Кабель размещен! Найдено соединений: " +
                     cable.getAllConnections().size());
@@ -72,7 +72,7 @@ public class CableEvents implements Listener {
 
             // Обновляем соединения соседних кабелей
             cableManager.updateNeighborCables(block, player);
-
+            service.onBlockChanged(block.getLocation());
             player.sendMessage("§c[Сеть] Кабель удален");
         }
     }

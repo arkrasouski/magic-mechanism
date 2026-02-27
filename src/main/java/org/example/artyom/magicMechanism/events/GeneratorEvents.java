@@ -3,18 +3,13 @@ package org.example.artyom.magicMechanism.events;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
-import org.bukkit.block.Container;
 import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.world.ChunkLoadEvent;
-import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
@@ -28,20 +23,18 @@ import org.example.artyom.magicMechanism.inventories.generator.GeneratorHolder;
 import org.example.artyom.magicMechanism.inventories.MechanismStorage;
 
 import org.example.artyom.magicMechanism.energyitems.EnergyCell;
-import org.example.artyom.magicMechanism.items.GeneratorItem;
+import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
-import org.example.artyom.magicMechanism.utils.BlockUtil;
 import org.example.artyom.magicMechanism.utils.LogUtil;
-import org.example.artyom.magicMechanism.utils.ToolUtil;
 
 public class GeneratorEvents extends BaseMechanismEvents<Generator, GeneratorManager> {
 
  private GeneratorGuiManager guiManager;
  private GenInventory genInventory;
-public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager, GeneratorGuiManager guiManager){//, GeneratorCellService genService, GenInventory genInventory) {
-    super(plugin, generatorManager, MechanismType.GENERATOR);
+public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager, GeneratorGuiManager guiManager, GeneratorBarrierService service){//, GeneratorCellService genService, GenInventory genInventory) {
+    super(plugin, generatorManager, MechanismType.GENERATOR, service);
     this.guiManager = guiManager;
     this.genInventory = new GenInventory();
 }

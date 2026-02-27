@@ -173,7 +173,6 @@ public class CableManager {
 
         // Удаляем из кэша и EnergyManager
         cableCache.remove(loc);
-        EnergyManager.removeHandler(loc);
 
         // Удаляем из PDC
         PersistentDataContainer pdc = new CustomBlockData(block, plugin);
