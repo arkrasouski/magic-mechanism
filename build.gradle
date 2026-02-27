@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id("xyz.jpenilla.run-paper") version "2.3.1"
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'io.github.goooler.shadow' version '8.1.8'
 }
 
 group = 'org.example.artyom'
@@ -21,6 +21,7 @@ dependencies {
     compileOnly "dev.lone:api-itemsadder:4.0.10"
     implementation("org.mariadb.jdbc:mariadb-java-client:3.4.1")
     implementation 'com.zaxxer:HikariCP:5.1.0'  // HikariCP
+    implementation 'com.jeff-media:custom-block-data:2.2.2' //Custom block data
 }
 
 tasks {
@@ -73,6 +74,7 @@ processResources {
 
 }
 shadowJar {
+    relocate 'com.jeff_media.customblockdata', 'org.example.artyom.customblockdata'
     archiveBaseName.set('MagicMechanism') // Имя итогового файла
     archiveClassifier.set('')       // Убираем суффикс '-all'
     destinationDirectory.set(file('/home/artyom-krasovski/minecraft-server/plugins/'))

@@ -6,16 +6,15 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
+import org.example.artyom.magicMechanism.managers.CableManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
+import org.example.artyom.magicMechanism.mechanisms.Cable;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class GeneratorBarrierService extends BukkitRunnable {
 
@@ -24,17 +23,21 @@ public class GeneratorBarrierService extends BukkitRunnable {
     private final BarrierManager barrierManager;
     private final int TRANSFER_RATE = 10;
     private final int GENERATION_RATE = 5;
-
+    private final int CABLE_SEARCH_RADIUS = 10; // Радиус поиска кабелей
+    private final CableManager cableManager;
     private final Map<MechanismType, ConsumerHandler> consumerHandlers = new EnumMap<>(MechanismType.class);
+
     //private final List<MechanismType> consumers = new ArrayList<>();
 
-    public GeneratorBarrierService(MagicMechanism plugin, GeneratorManager generatorManager, BarrierManager barrierManager) {
+    public GeneratorBarrierService(MagicMechanism plugin, GeneratorManager generatorManager, BarrierManager barrierManager, CableManager cableManager) {
         this.plugin = plugin;
         this.generatorManager = generatorManager;
         this.barrierManager = barrierManager;
+        this.cableManager = cableManager;
 
         //consumers.add(MechanismType.BARRIER);
         registerHandlers();
+        LogUtil.info("GeneratorBarrierService инициализирован с поддержкой проводов");
     }
 
     private void registerHandlers() {
@@ -80,23 +83,22 @@ public class GeneratorBarrierService extends BukkitRunnable {
     public void run() {
         boolean anyEnergyTransferred = false;
 
-        for (BaseMechanism generatorRaw : generatorManager.getAllMechanisms()) {
-            if (!(generatorRaw instanceof Generator generator)) continue;
+        for (Generator generator : generatorManager.getAllMechanisms()) {
 
             int energyBefore = generator.getEnergyLevel();
             LogUtil.warn("Генератор " + generator.getLocation() + " энергия до: " + energyBefore);
 
             // Генерируем энергию ТОЛЬКО если не достигнут максимум
-//            if (energyBefore < generator.getCapacity()) {
-//                int newEnergy = Math.min(energyBefore + GENERATION_RATE, generator.getCapacity());
-//                generator.setEnergyLevel(newEnergy);
-//                LogUtil.warn("Сгенерирована энергия: " + (newEnergy - energyBefore) + ", теперь: " + newEnergy);
-//            }
+            if (energyBefore < generator.getCapacity()) {
+                int newEnergy = Math.min(energyBefore + GENERATION_RATE, generator.getCapacity());
+                generator.setEnergyLevel(newEnergy);
+                LogUtil.warn("Сгенерирована энергия: " + (newEnergy - energyBefore) + ", теперь: " + newEnergy);
+            }
 
             // Передаем энергию ТОЛЬКО если есть что передавать
             int currentEnergy = generator.getEnergyLevel();
             if (currentEnergy > 0) {
-                int energyTransferred = transferEnergyToNearbyConsumers(generator); //Проверка каждого блока - может ли он принять энергию
+                int energyTransferred = transferEnergyThroughCables(generator); //Проверка каждого блока - может ли он принять энергию
                 if (energyTransferred > 0) {
                     anyEnergyTransferred = true;
                     LogUtil.warn("Передано энергии: " + energyTransferred + ", осталось: " + generator.getEnergyLevel());
@@ -120,61 +122,108 @@ public class GeneratorBarrierService extends BukkitRunnable {
      * Передает энергию потребителям
      * @return количество переданной энергии
      */
-    private int transferEnergyToNearbyConsumers(Generator generator) {
-        Location loc = generator.getLocation();
-        int radius = 5;
+    private int transferEnergyThroughCables(Generator generator) {
+        Location generatorLoc = generator.getLocation();
         int remainingEnergy = generator.getEnergyLevel();
         int totalTransferred = 0;
 
-        if (remainingEnergy <= 0) return 0;
+        Set<Cable> nearbyCables = findNearbyCables(generatorLoc);
+        Set<Location> processedConsumers = new HashSet<>();
 
-        // Сначала собираем всех потребителей, которые могут принять энергию
-        List<ConsumerInfo> availableConsumers = new ArrayList<>();
+        for (Cable cable : nearbyCables) {
+            if (remainingEnergy <= 0) break;
 
-        for (int x = -radius; x <= radius; x++) {
-            for (int y = -radius; y <= radius; y++) {
-                for (int z = -radius; z <= radius; z++) {
-                    Block relativeBlock = loc.clone().add(x, y, z).getBlock();
+            // ПРИНУДИТЕЛЬНОЕ СКАНИРОВАНИЕ ПЕРЕД ИСПОЛЬЗОВАНИЕМ
+            if (!cableManager.isCable(cable.getLocation().getBlock())) {
+                LogUtil.warn("Кабель больше не существует, пропускаем");
+                continue;
+            }
+            Block cableBlock = cable.getLocation().getBlock();
+            cable.scanConnections(cableBlock);
 
-                    if (relativeBlock.getLocation().equals(loc)) continue;
+            // Добавим задержку для отладки
+            try {
+                Thread.sleep(10); // Небольшая задержка для последовательности логирования
+            } catch (InterruptedException e) {}
 
-                    // Проверяем, является ли блок потребителем
-                    ConsumerInfo consumer = getConsumerIfCanAccept(relativeBlock); //Проверка потребителей
-                    if (consumer != null) {
-                        availableConsumers.add(consumer);
+            // Получаем всех потребителей, подключенных к этому кабелю
+            Set<Location> consumers = cable.getConnectedConsumers();
+            LogUtil.warn("Кабель нашел потребителей: " + consumers.size());
+
+            if (consumers.isEmpty()) {
+                continue;
+            }
+
+            for (Location consumerLoc : consumers) {
+                if (remainingEnergy <= 0) break;
+                if (processedConsumers.contains(consumerLoc)) continue;
+
+                Block consumerBlock = consumerLoc.getBlock();
+                ConsumerInfo consumer = getConsumerIfCanAccept(consumerBlock);
+
+                if (consumer != null) {
+                    int energyToTransfer = Math.min(TRANSFER_RATE, remainingEnergy);
+                    int usedEnergy = consumer.handler.consume(consumerBlock, energyToTransfer);
+
+                    if (usedEnergy > 0) {
+                        generator.transferEnergy(usedEnergy);
+                        remainingEnergy -= usedEnergy;
+                        totalTransferred += usedEnergy;
+                        processedConsumers.add(consumerLoc);
+                        spawnCableTransferEffect(generatorLoc, cable.getLocation(), consumerLoc);
                     }
                 }
             }
         }
 
-        if (availableConsumers.isEmpty()) {
-            LogUtil.warn("Нет доступных потребителей");
-            return 0;
-        }
-
-        LogUtil.warn("Найдено потребителей: " + availableConsumers.size());
-
-        // Передаем энергию потребителям
-        for (ConsumerInfo consumer : availableConsumers) {
-            if (remainingEnergy <= 0) break;
-
-            int energyToTransfer = Math.min(TRANSFER_RATE, remainingEnergy);
-            int usedEnergy = consumer.handler.consume(consumer.block, energyToTransfer);
-
-            if (usedEnergy > 0) {
-                generator.transferEnergy(usedEnergy);
-                remainingEnergy -= usedEnergy;
-                totalTransferred += usedEnergy;
-                spawnTransferEffect(generator.getLocation(), consumer.block.getLocation());
-
-                LogUtil.info(String.format("Передано %d энергии от генератора к %s",
-                        usedEnergy, consumer.type));
-            }
-        }
-
         return totalTransferred;
     }
+    // Временный метод для проверки
+    private void checkBarrierDistance(Location cableLoc) {
+        LogUtil.warn("=== ПРОВЕРКА РАССТОЯНИЙ ДО БАРЬЕРОВ ===");
 
+        for (Barrier barrier : barrierManager.getAllMechanisms()) {
+            Location barrierLoc = barrier.getLocation();
+            double distance = cableLoc.distance(barrierLoc);
+
+            LogUtil.warn("Барьер на " + barrierLoc +
+                    " расстояние: " + distance + " блоков");
+
+            // Проверяем, являются ли они соседними
+            boolean isAdjacent = Math.abs(cableLoc.getBlockX() - barrierLoc.getBlockX()) <= 1 &&
+                    Math.abs(cableLoc.getBlockY() - barrierLoc.getBlockY()) <= 1 &&
+                    Math.abs(cableLoc.getBlockZ() - barrierLoc.getBlockZ()) <= 1;
+
+            LogUtil.warn("  Соседний блок? " + isAdjacent);
+
+            if (isAdjacent) {
+                LogUtil.warn("  ✅ Барьер должен быть найден при сканировании!");
+            }
+        }
+    }
+    /**
+     * Находит кабели рядом с локацией
+     */
+        private Set<Cable> findNearbyCables(Location center) {
+            Set<Cable> cables = new HashSet<>();
+            int radius = CABLE_SEARCH_RADIUS;
+
+            for (int x = -radius; x <= radius; x++) {
+                for (int y = -radius; y <= radius; y++) {
+                    for (int z = -radius; z <= radius; z++) {
+                        Location checkLoc = center.clone().add(x, y, z);
+                        Block block = checkLoc.getBlock();
+
+                        Cable cable = cableManager.getCable(block);
+                        if (cable != null) {
+                            cables.add(cable);
+                        }
+                    }
+                }
+            }
+
+            return cables;
+        }
     /**
      * Проверяет, может ли блок потреблять энергию, и возвращает информацию о потребителе
      */
@@ -237,7 +286,33 @@ public class GeneratorBarrierService extends BukkitRunnable {
             // Игнорируем ошибки частиц
         }
     }
+    private void spawnCableTransferEffect(Location from, Location cableLoc, Location to) {
+        try {
+            // Эффект от генератора к кабелю
+            from.getWorld().spawnParticle(
+                    org.bukkit.Particle.END_ROD,
+                    from.clone().add(0.5, 1, 0.5),
+                    0,
+                    cableLoc.getX() - from.getX(),
+                    cableLoc.getY() - from.getY(),
+                    cableLoc.getZ() - from.getZ(),
+                    0.3
+            );
 
+            // Эффект от кабеля к потребителю
+            from.getWorld().spawnParticle(
+                    org.bukkit.Particle.END_ROD,
+                    cableLoc.clone().add(0.5, 0.5, 0.5),
+                    0,
+                    to.getX() - cableLoc.getX(),
+                    to.getY() - cableLoc.getY(),
+                    to.getZ() - cableLoc.getZ(),
+                    0.3
+            );
+        } catch (Exception e) {
+            // Игнорируем ошибки частиц
+        }
+    }
     public void addConsumerType(MechanismType type, ConsumerHandler handler) {
         //consumers.add(type);
         if (handler != null) {

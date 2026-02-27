@@ -12,6 +12,7 @@ import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.data.records.ChunkCoordinate;
 import org.example.artyom.magicMechanism.data.records.MechanismData;
+import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
@@ -59,7 +60,7 @@ public abstract class BaseManager<T extends BaseMechanism> {
                 mechanism.getEnergyLevel(),
                 mechanism.getCapacity(),
                 mechanism.isActive(),
-                mechanism.getOwner() != null ? mechanism.getOwner().getUniqueId() : null
+                mechanism.getOwner() != null ? mechanism.getOwner() : null
         );
     }
 
@@ -342,5 +343,9 @@ public abstract class BaseManager<T extends BaseMechanism> {
 
     public boolean hasMechanism(Location location) {
         return activeMechanisms.containsKey(location);
+    }
+
+    public void addMechanism(Location location, T barrier) {
+        this.activeMechanisms.put(location, barrier);
     }
 }

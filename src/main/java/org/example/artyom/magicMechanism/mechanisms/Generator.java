@@ -3,56 +3,78 @@ import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
+import org.example.artyom.magicMechanism.data.interfaces.IEnergyHandler;
+import org.example.artyom.magicMechanism.data.records.MechanismData;
+import org.example.artyom.magicMechanism.managers.BarrierManager;
+import org.example.artyom.magicMechanism.managers.GeneratorManager;
+import org.example.artyom.magicMechanism.utils.LogUtil;
 
+import java.util.UUID;
 
 
 public class Generator extends BaseMechanism {
 
-    public static final int capacity = 1000;
+    public static final int CAPACITY = 1000;
     public static final int frequency = 10;
     public static final int frequencySpeed = 20;
-    public Generator(Location location, Player owner) {
-        super(location,
-                MechanismType.GENERATOR,
-                owner, false,
-                0, capacity,
-                frequency, frequencySpeed);
+    public Generator(Location location, UUID owner) {
+        super(location, MechanismType.GENERATOR, owner, CAPACITY);
+        this.energyLevel = 0;
     }
 
-    public Generator(Location location, Player owner, int energy, int capacity, boolean isActive) {
-          super(location,
-                MechanismType.GENERATOR,
-                owner, isActive,
-                energy, capacity,
-                frequency, frequencySpeed);
+    // Конструктор для загрузки из данных
+    public Generator(Location location, UUID owner, int energy, int capacity) {
+        super(location, MechanismType.GENERATOR, owner, capacity);
+        this.energyLevel = energy;
     }
 
-//    public void generateEnergy() {
-//        if (!isActive) return;
-//
-//        if (energyLevel < capacity) {
-//            energyLevel += 1; // генерируем 1 энергии за тик
-//            if (energyLevel > capacity) {
-//                energyLevel = capacity;
-//            }
-//        }
-//    }
-
-    // Передаем энергию потребителю
-    public int transferEnergy(int requested) {
-        //if (!isActive || energyLevel <= 0) return 0;
-
-        int transferred = Math.min(energyLevel, requested);
-        energyLevel -= transferred;
-        return transferred;
+    // Фабричный метод для создания (при размещении)
+    public static Generator create(Location location, UUID owner, GeneratorManager manager) {
+        Generator generator = new Generator(location, owner);
+        manager.addMechanism(location, generator);
+        LogUtil.warn("✓ ГЕНЕРАТОР СОЗДАН: " + location);
+        return generator;
     }
 
-    static final BlockFace[] FACES_6 = {
-            BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN
-    };
+    // Фабричный метод для загрузки (из данных)
+    public static Generator load(Location location, MechanismData data, GeneratorManager manager) {
+        Generator generator = new Generator(location,data.owner(), data.energy(), data.maxEnergy());
+        generator.setActive(data.active());
+        manager.addMechanism(location, generator);
+        LogUtil.warn("✓ ГЕНЕРАТОР ЗАГРУЖЕН: " + location + " энергия: " + data.energy());
+        return generator;
+    }
 
     @Override
-    public MechanismType getMechanismType() {
-        return MechanismType.GENERATOR;
+    public MechanismData toData() {
+        return new MechanismData(
+                location.getBlockX(),
+                location.getBlockY(),
+                location.getBlockZ(),
+                energyLevel,
+                capacity,
+                active,
+                owner
+        );
     }
+
+    @Override
+    public int getEnergyLevel() {
+        return energyLevel;
+    }
+
+    @Override
+    public void setEnergyLevel(int energy) {
+        this.energyLevel = Math.min(energy, capacity);
+    }
+
+    public boolean transferEnergy(int amount) {
+        if (amount <= 0) return false;
+        if (energyLevel < amount) return false;
+
+        energyLevel -= amount;
+        LogUtil.warn("Генератор передал " + amount + " энергии. Осталось: " + energyLevel);
+        return true;
+    }
+
 }

@@ -108,7 +108,7 @@ public void onClose(InventoryCloseEvent e) {
             }
 
             // 2. Получаем частоту из PDC
-            int frequency = generator.getFrequency();
+//            int frequency = generator.getFrequency();
 
             // 3. Получаем capacity из конфига механизма
             int capacity = generator.getCapacity();
@@ -141,7 +141,7 @@ public void onClose(InventoryCloseEvent e) {
             // 10. Отправляем информационное сообщение
             player.sendMessage(ChatColor.YELLOW + "⚡ Генератор ⚡");
             player.sendMessage(ChatColor.GRAY + "  Энергия: " + formatEnergy(buffer, capacity));
-            player.sendMessage(ChatColor.GRAY + "  Частота: " + frequency);
+           // player.sendMessage(ChatColor.GRAY + "  Частота: " + frequency);
             player.sendMessage(ChatColor.GRAY + "  Статус: " + (generator.isActive() ? "§aАктивен" : "§cНеактивен"));
 
             // 11. Логируем взаимодействие для отладки (можно убрать в продакшене)

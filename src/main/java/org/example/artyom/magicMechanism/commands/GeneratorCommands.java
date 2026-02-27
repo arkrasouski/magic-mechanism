@@ -8,6 +8,7 @@ import org.bukkit.inventory.ItemStack;
 import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.energyitems.EnergyCell;
 import org.example.artyom.magicMechanism.items.BarrierItem;
+import org.example.artyom.magicMechanism.items.CableItem;
 import org.example.artyom.magicMechanism.items.GeneratorItem;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 //import org.example.artyom.magicMechanism.mechanisms.Barrier;
@@ -53,6 +54,14 @@ public class GeneratorCommands implements CommandExecutor {
         if (command.getName().equalsIgnoreCase("getbarrier")) {
             if(commandSender instanceof Player p){
                 ItemStack item = new BarrierItem(plugin).createItem(1);
+                p.getInventory().addItem(item);
+                return true;
+            }
+        }
+
+        if(command.getName().equalsIgnoreCase("getcable")){
+            if(commandSender instanceof Player p){
+                ItemStack item = new CableItem(plugin).createItem(64);
                 p.getInventory().addItem(item);
                 return true;
             }

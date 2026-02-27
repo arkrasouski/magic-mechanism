@@ -10,4 +10,6 @@ commands:
     description: Выдает аккумулятор
   getbarrier:
     description: Выдает барьер
+  getcable:
+    description: Выдает кабель
 depend: [ItemsAdder]

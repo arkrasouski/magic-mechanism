@@ -4,7 +4,8 @@ import org.bukkit.Material;
 
 public enum MechanismType {
     GENERATOR(Material.DROPPER),
-    BARRIER(Material.BARREL); // добавляйте новые
+    BARRIER(Material.BARREL),
+    CABLE(Material.PURPLE_STAINED_GLASS_PANE); // добавляйте новые
 
     private final Material material;
 
@@ -18,6 +19,7 @@ public enum MechanismType {
         return switch (this) {
             case GENERATOR -> "Генератор";
             case BARRIER -> "Барьер";
+            case CABLE -> "Кабель";
         };
     }
 
@@ -25,6 +27,7 @@ public enum MechanismType {
         return  switch (this) {
             case GENERATOR -> "Генерирует энергию из кристаллов!";
             case BARRIER -> "Генерирует защитный купол на территории";
+            case CABLE -> "Передает энергию между механизмами";
         };
     }
 }

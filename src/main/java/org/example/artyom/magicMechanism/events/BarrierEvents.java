@@ -52,6 +52,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -91,8 +92,8 @@ public class BarrierEvents extends BaseMechanismEvents<Barrier, BarrierManager> 
             holder.setInventory(mainInventory);
             Player p = e.getPlayer();
 
-                p.sendMessage(ChatColor.YELLOW + barrier.getMechanismType().getGuiTitle() + ": энергия=" + barrier.getEnergyLevel() + "/" + barrier.getCapacity()
-                        + " частота=" + barrier.getFrequency());
+                p.sendMessage(ChatColor.YELLOW + ": энергия=" + barrier.getEnergyLevel() + "/" + barrier.getCapacity()
+                        + " частота=");
                 p.openInventory(mainInventory);
 
             }
@@ -413,6 +414,37 @@ public class BarrierEvents extends BaseMechanismEvents<Barrier, BarrierManager> 
 
             });
         }
+    // Временно добавьте команду для проверки
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+
+        Block block = event.getClickedBlock();
+        Player player = event.getPlayer();
+
+        if (player.getInventory().getItemInMainHand().getType() == Material.STICK) {
+
+            player.sendMessage("§6=== ДИАГНОСТИКА БАРЬЕРОВ ===");
+
+            // Все барьеры в менеджере
+            Collection<Barrier> barriers = mechanismManager.getAllMechanisms();
+            player.sendMessage("§7Барьеров в менеджере: §f" + barriers.size());
+
+            for (Barrier barrier : barriers) {
+                player.sendMessage("§7- " + barrier.getLocation() +
+                        " : " + barrier.getEnergyLevel() + "/" + barrier.getCapacity());
+            }
+
+            // Проверка текущего блока
+            boolean isBarrier = mechanismManager.hasMechanism(block.getLocation());
+            player.sendMessage("§7Этот блок барьер? §" + (isBarrier ? "aДа" : "cНет"));
+
+            if (isBarrier) {
+                Barrier barrier = mechanismManager.getMechanism(block.getLocation());
+                player.sendMessage("§7Энергия: §e" + barrier.getEnergyLevel() + "/" + barrier.getCapacity());
+            }
+        }
+    }
 }
 
 

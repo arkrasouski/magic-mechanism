@@ -8,6 +8,8 @@ import org.example.artyom.magicMechanism.data.enums.MechanismType;
 import org.example.artyom.magicMechanism.data.records.MechanismData;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 
+import java.util.UUID;
+
 public class GeneratorManager extends BaseManager<Generator> {
 
     public GeneratorManager(MagicMechanism plugin) {
@@ -18,7 +20,7 @@ public class GeneratorManager extends BaseManager<Generator> {
     @Override
     protected Generator createMechanismInstance(Location location, Player owner,
                                                 int energy, int capacity, boolean active) {
-        return new Generator(location, owner, energy, capacity, active);
+        return Generator.create(location, owner.getUniqueId(), this);
     }
 
 //    @Override
@@ -37,11 +39,10 @@ public class GeneratorManager extends BaseManager<Generator> {
     @Override
     protected Generator deserializeMechanism(MechanismData data, World world) {
         Location loc = data.toLocation(world);
-        Player owner = data.owner() != null ?
-                plugin.getServer().getPlayer(data.owner()) : null;
+        UUID owner = data.owner() != null ?
+               data.owner() : null;
 
-        return new Generator(loc, owner, data.energy(),
-                data.maxEnergy(), data.active());
+        return Generator.create(loc, owner, this);
     }
 
     @Override
