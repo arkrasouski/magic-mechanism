@@ -1,5 +1,6 @@
 package org.example.artyom.magicMechanism.events;
 import org.bukkit.Chunk;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
@@ -22,9 +23,12 @@ import org.example.artyom.magicMechanism.items.BaseMechanismItem;
 import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.managers.BaseManager;
 
+import org.example.artyom.magicMechanism.managers.NetworkManager;
+import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.example.artyom.magicMechanism.utils.BlockUtil;
+import org.example.artyom.magicMechanism.utils.LogUtil;
 import org.example.artyom.magicMechanism.utils.ToolUtil;
 
 public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manager extends BaseManager<Mechanism>> implements Listener {
@@ -32,12 +36,14 @@ public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manag
     protected final Manager mechanismManager;
     protected final MechanismType mechanismType;
     protected final GeneratorBarrierService service;
+    protected NetworkManager networkManager; // Добавляем NetworkManager
 
-    public BaseMechanismEvents(MagicMechanism plugin, Manager mechanismManager, MechanismType mechanismType, GeneratorBarrierService service) {
+    public BaseMechanismEvents(MagicMechanism plugin, Manager mechanismManager, MechanismType mechanismType, GeneratorBarrierService service, NetworkManager networkManager) {
         this.plugin = plugin;
         this.mechanismManager= mechanismManager;
         this.mechanismType = mechanismType;
         this.service = service;
+        this.networkManager = networkManager;
     }
 
     @EventHandler
@@ -45,7 +51,7 @@ public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manag
         Block block = event.getBlock();
         Player player = event.getPlayer();
         ItemStack item = event.getItemInHand();
-
+        Location loc = block.getLocation();
         if (!isMechanismItem(item)) {return;}
 
         if (!canPlaceMechanism(block, player)) {
@@ -61,9 +67,22 @@ public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manag
             player.sendMessage("§cОшибка при создании " + mechanismType.getGuiTitle());
             return;
         }
+        if (networkManager != null) {
+            switch (mechanismType) {
+                case GENERATOR:
+                    networkManager.onGeneratorPlaced((Generator) mechanism, loc);
+                    LogUtil.warn("✓ NetworkManager уведомлен о генераторе");
+                    break;
+                case BARRIER:
+                    networkManager.onConsumerPlaced((Barrier) mechanism, loc); // Предполагаем, что Barrier implements Consumer
+                    LogUtil.warn("✓ NetworkManager уведомлен о барьере");
+                    break;
+                // Для других типов можно добавить
+            }
+        }
         // ШАГ 5: Сообщение игроку
         player.sendMessage("§a✓ " + mechanismType.getGuiTitle() + " успешно установлен!");
-        service.onBlockChanged(block.getLocation());
+
         // ШАГ 6: Визуальный эффект
         spawnPlaceEffect(block);
     }
@@ -72,9 +91,22 @@ public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manag
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         Player player = event.getPlayer();
-
+        Location loc = block.getLocation();
             // Проверяем, является ли сломанный блок генератором
             if (mechanismManager.getMechanism(block) != null) {
+                // Уведомляем NetworkManager перед удалением
+                if (networkManager != null) {
+                    switch (mechanismType) {
+                        case GENERATOR:
+                            networkManager.onGeneratorRemoved(loc);
+                            LogUtil.warn("✓ NetworkManager уведомлен об удалении генератора");
+                            break;
+                        case BARRIER:
+                            networkManager.onConsumerRemoved(loc);
+                            LogUtil.warn("✓ NetworkManager уведомлен об удалении барьера");
+                            break;
+                    }
+                }
                 // Удаляем генератор
                 mechanismManager.deleteMechanism(block.getLocation());
 
@@ -93,7 +125,7 @@ public abstract class BaseMechanismEvents<Mechanism extends BaseMechanism, Manag
                 }
                 // Удаляем блок
                 block.setType(Material.AIR);
-                service.onBlockChanged(block.getLocation());
+
                 // Дропаем предмет генератора
                 ItemStack mechanismItem = new BaseMechanismItem(plugin, mechanismType).createItem(1);
                 //ItemStack mechanismItem = this.mechanismItem.createItem(1); // но с данными блока!

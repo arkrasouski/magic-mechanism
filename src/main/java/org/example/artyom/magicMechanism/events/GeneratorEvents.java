@@ -26,6 +26,7 @@ import org.example.artyom.magicMechanism.energyitems.EnergyCell;
 import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.linkservice.GeneratorCellService;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
+import org.example.artyom.magicMechanism.managers.NetworkManager;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
@@ -33,8 +34,8 @@ public class GeneratorEvents extends BaseMechanismEvents<Generator, GeneratorMan
 
  private GeneratorGuiManager guiManager;
  private GenInventory genInventory;
-public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager, GeneratorGuiManager guiManager, GeneratorBarrierService service){//, GeneratorCellService genService, GenInventory genInventory) {
-    super(plugin, generatorManager, MechanismType.GENERATOR, service);
+public GeneratorEvents(MagicMechanism plugin, GeneratorManager generatorManager, GeneratorGuiManager guiManager, GeneratorBarrierService service, NetworkManager networkManager){//, GeneratorCellService genService, GenInventory genInventory) {
+    super(plugin, generatorManager, MechanismType.GENERATOR, service, networkManager);
     this.guiManager = guiManager;
     this.genInventory = new GenInventory();
 }

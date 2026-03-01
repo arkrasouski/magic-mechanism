@@ -39,6 +39,7 @@ import org.example.artyom.magicMechanism.items.GeneratorItem;
 import org.example.artyom.magicMechanism.linkservice.GeneratorBarrierService;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
+import org.example.artyom.magicMechanism.managers.NetworkManager;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.example.artyom.magicMechanism.utils.BlockUtil;
@@ -64,8 +65,8 @@ public class BarrierEvents extends BaseMechanismEvents<Barrier, BarrierManager> 
     BarrierInventory barrierInventory;
     DatabaseManager databaseManager;
 
-    public BarrierEvents(MagicMechanism plugin, BarrierManager barrierManager, DatabaseManager db, GeneratorBarrierService service) {
-        super(plugin, barrierManager, MechanismType.BARRIER, service);
+    public BarrierEvents(MagicMechanism plugin, BarrierManager barrierManager, DatabaseManager db, GeneratorBarrierService service, NetworkManager networkManager) {
+        super(plugin, barrierManager, MechanismType.BARRIER, service, networkManager);
         this.databaseManager = db;
         this.barrierInventory = new BarrierInventory();
     }

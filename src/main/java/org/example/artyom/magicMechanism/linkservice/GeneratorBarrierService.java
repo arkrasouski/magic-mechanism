@@ -10,8 +10,6 @@ import org.example.artyom.magicMechanism.managers.CableManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
 import org.example.artyom.magicMechanism.managers.NetworkManager;
 import org.example.artyom.magicMechanism.mechanisms.Barrier;
-import org.example.artyom.magicMechanism.mechanisms.BaseMechanism;
-import org.example.artyom.magicMechanism.mechanisms.Cable;
 import org.example.artyom.magicMechanism.mechanisms.Generator;
 import org.example.artyom.magicMechanism.network.EnergyNetwork;
 import org.example.artyom.magicMechanism.utils.LogUtil;
@@ -24,31 +22,30 @@ public class GeneratorBarrierService extends BukkitRunnable {
     private final GeneratorManager generatorManager;
     private final BarrierManager barrierManager;
     private final NetworkManager networkManager;
+    private final CableManager cableManager;
     private final int TRANSFER_RATE = 10;
     private final int GENERATION_RATE = 5;
-    private final int CABLE_SEARCH_RADIUS = 10; // Радиус поиска кабелей
-    private final CableManager cableManager;
     private final Map<MechanismType, ConsumerHandler> consumerHandlers = new EnumMap<>(MechanismType.class);
 
-    //private final List<MechanismType> consumers = new ArrayList<>();
-
-    public GeneratorBarrierService(MagicMechanism plugin, GeneratorManager generatorManager, BarrierManager barrierManager, CableManager cableManager, NetworkManager networkManager) {
+    public GeneratorBarrierService(MagicMechanism plugin,
+                                   GeneratorManager generatorManager,
+                                   BarrierManager barrierManager,
+                                   CableManager cableManager,
+                                   NetworkManager networkManager, CableManager cableManager1) {
         this.plugin = plugin;
         this.generatorManager = generatorManager;
         this.barrierManager = barrierManager;
-        this.cableManager = cableManager;
         this.networkManager = networkManager;
-        //consumers.add(MechanismType.BARRIER);
+        this.cableManager = cableManager1;
         registerHandlers();
-        LogUtil.info("GeneratorBarrierService инициализирован с поддержкой проводов");
+        LogUtil.info("GeneratorBarrierService инициализирован");
     }
 
     private void registerHandlers() {
-        //привязка типа и обработчика для типа
         consumerHandlers.put(MechanismType.BARRIER, (block, energy) -> {
             Barrier barrier = barrierManager.getMechanism(block.getLocation());
-
             if (barrier == null) {
+                LogUtil.warn("  ❌ Барьер не найден в обработчике!");
                 return 0;
             }
 
@@ -56,6 +53,7 @@ public class GeneratorBarrierService extends BukkitRunnable {
             int maxStorage = barrier.getCapacity();
 
             if (stored >= maxStorage) {
+                LogUtil.warn("  ⚠ Барьер уже полностью заряжен: " + stored + "/" + maxStorage);
                 return 0;
             }
 
@@ -63,92 +61,156 @@ public class GeneratorBarrierService extends BukkitRunnable {
             barrier.setEnergyLevel(newStored);
             barrierManager.saveMechanism(barrier);
 
-            LogUtil.info(String.format("Барьер получил %d энергии. Всего: %d/%d",
-                    energy, newStored, maxStorage));
+            LogUtil.info(String.format("  ✅ Барьер получил %d энергии. Всего: %d/%d",
+                    newStored - stored, newStored, maxStorage));
 
             return newStored - stored;
         });
     }
 
-
-//    Для каждого генератора в мире:
-//
-//    Проверяет текущий уровень энергии
-//
-//    Если есть энергия (currentEnergy > 0):
-//
-//    Пытается передать её ближайшим потребителям
-//
-//    Сохраняет изменения в генераторе
-
-
     @Override
     public void run() {
-        boolean anyEnergyTransferred = false;
+        LogUtil.warn("=== ТИК СЕРВИСА ===");
+        LogUtil.warn("Всего генераторов: " + generatorManager.getAllMechanisms().size());
+        LogUtil.warn("Всего барьеров: " + barrierManager.getAllMechanisms().size());
+        LogUtil.warn("Всего сетей: " + networkManager.getAllNetworks().size());
 
-        for (Generator generator : generatorManager.getAllMechanisms()) {
-            int energyBefore = generator.getEnergyLevel();
-
-            // Генерация энергии
-            if (energyBefore < generator.getCapacity()) {
-                int newEnergy = Math.min(energyBefore + GENERATION_RATE, generator.getCapacity());
-                generator.setEnergyLevel(newEnergy);
-            }
-
-            // Передача энергии
-            int currentEnergy = generator.getEnergyLevel();
-            if (currentEnergy > 0) {
-                // ✅ Проверяем валидность сети перед передачей
-                EnergyNetwork network = networkManager.getNetwork(generator.getLocation());
-
-                if (network != null && network.isValid()) {
-                    int energyTransferred = transferEnergyInNetwork(generator, network);
-                    if (energyTransferred > 0) {
-                        anyEnergyTransferred = true;
-                    }
-                } else {
-                    LogUtil.warn("Сеть невалидна или отсутствует для генератора " + generator.getLocation());
-                }
-            }
-
-            // Сохранение
-            if (energyBefore != generator.getEnergyLevel()) {
-                generatorManager.saveMechanism(generator);
-            }
-        }
-    }
-    private int transferEnergyInNetwork(Generator generator, EnergyNetwork network) {
-        Location generatorLoc = generator.getLocation();
-        int remainingEnergy = generator.getEnergyLevel();
         int totalTransferred = 0;
 
-        // Получаем всех потребителей в сети
+        for (Generator generator : generatorManager.getAllMechanisms()) {
+            int transferred = processGenerator(generator);
+            totalTransferred += transferred;
+        }
+
+        if (totalTransferred > 0) {
+            LogUtil.warn("Итого передано энергии в этом тике: " + totalTransferred);
+        }
+    }
+
+    private int processGenerator(Generator generator) {
+        int energyBefore = generator.getEnergyLevel();
+        Location genLoc = generator.getLocation();
+
+        LogUtil.warn("--- Обработка генератора " + formatLocation(genLoc) + " ---");
+        LogUtil.warn("  Энергия до: " + energyBefore + "/" + generator.getCapacity());
+
+        // 1. Генерация энергии
+        if (energyBefore < generator.getCapacity()) {
+            int newEnergy = Math.min(energyBefore + GENERATION_RATE, generator.getCapacity());
+            generator.setEnergyLevel(newEnergy);
+            LogUtil.warn("  ⚡ Сгенерировано: " + (newEnergy - energyBefore) + ", теперь: " + newEnergy);
+        }
+
+        // 2. Передача энергии через сеть
+        int currentEnergy = generator.getEnergyLevel();
+        int transferred = 0;
+
+        if (currentEnergy > 0) {
+            EnergyNetwork network = networkManager.getNetwork(genLoc);
+
+            if (network == null) {
+                LogUtil.warn("  ❌ Сеть НЕ НАЙДЕНА для генератора!");
+
+                // Проверим, есть ли кабель рядом
+                Set<Location> neighbors = getNeighbors(genLoc);
+                LogUtil.warn("  Соседи генератора: " + neighbors.size());
+                for (Location neighbor : neighbors) {
+                    EnergyNetwork neighborNetwork = networkManager.getNetwork(neighbor);
+                    LogUtil.warn("    Сосед " + formatLocation(neighbor) +
+                            (neighborNetwork != null ? " в сети " + neighborNetwork.getId() : " без сети"));
+                }
+            } else {
+                LogUtil.warn("  ✅ Сеть найдена: " + network.getId());
+                LogUtil.warn("  Узлов в сети: " + network.getNodes().size());
+                LogUtil.warn("  Генераторов в сети: " + network.getGenerators().size());
+                LogUtil.warn("  Потребителей в сети: " + network.getConsumers().size());
+
+                if (network.isValid()) {
+                    LogUtil.warn("  ✅ Сеть валидна");
+                    transferred = distributeGeneratorEnergy(generator, network);
+                } else {
+                    LogUtil.warn("  ❌ Сеть НЕ валидна!");
+                    if (network.getGenerators().isEmpty()) LogUtil.warn("    - Нет генераторов в сети");
+                    if (network.getConsumers().isEmpty()) LogUtil.warn("    - Нет потребителей в сети");
+                    if (!network.isConnected()) LogUtil.warn("    - Сеть не связна");
+                }
+            }
+        }
+
+        // 3. Сохранение изменений
+        if (energyBefore != generator.getEnergyLevel() || transferred > 0) {
+            generatorManager.saveMechanism(generator);
+            LogUtil.warn("  💾 Генератор сохранен");
+        }
+
+        return transferred;
+    }
+
+    private int distributeGeneratorEnergy(Generator generator, EnergyNetwork network) {
+        Location generatorLoc = generator.getLocation();
+        int availableEnergy = generator.getEnergyLevel();
+        int totalTransferred = 0;
+
+        LogUtil.warn("  === РАСПРЕДЕЛЕНИЕ ЭНЕРГИИ ===");
+        LogUtil.warn("    Доступно энергии: " + availableEnergy);
+
         Set<Location> consumers = network.getConsumers();
-        Set<Location> processedConsumers = new HashSet<>();
+        LogUtil.warn("    Потребителей в сети: " + consumers.size());
 
-        for (Location consumerLoc : consumers) {
-            if (remainingEnergy <= 0) break;
-            if (processedConsumers.contains(consumerLoc)) continue;
+        if (consumers.isEmpty()) {
+            LogUtil.warn("    ❌ Нет потребителей в сети");
+            return 0;
+        }
 
-            // ✅ Проверяем, существует ли путь в текущей конфигурации
-            if (!network.canTransfer(generatorLoc, consumerLoc)) {
-                LogUtil.warn("Нет пути от генератора к потребителю " + consumerLoc);
+        // Сортируем потребителей по расстоянию
+        List<Location> sortedConsumers = new ArrayList<>(consumers);
+        sortedConsumers.sort(Comparator.comparingDouble(loc -> loc.distance(generatorLoc)));
+
+        for (Location consumerLoc : sortedConsumers) {
+            if (availableEnergy <= 0) {
+                LogUtil.warn("    ⚡ Энергия закончилась");
+                break;
+            }
+
+            LogUtil.warn("    --- Проверка потребителя " + formatLocation(consumerLoc) + " ---");
+
+            // Проверяем путь в сети
+            boolean hasPath = network.hasPath(generatorLoc, consumerLoc);
+            LogUtil.warn("      Есть путь? " + hasPath);
+
+            if (!hasPath) {
+                LogUtil.warn("      ❌ Нет пути, пропускаем");
                 continue;
             }
 
-            // Проверяем, может ли потребитель принять энергию
-            Block consumerBlock = consumerLoc.getBlock();
-            ConsumerInfo consumer = getConsumerIfCanAccept(consumerBlock);
+            // Получаем информацию о потребителе
+            ConsumerInfo consumerInfo = getConsumerInfo(consumerLoc);
+            if (consumerInfo == null) {
+                LogUtil.warn("      ❌ Не удалось получить информацию о потребителе");
+                continue;
+            }
 
-            if (consumer != null) {
-                int energyToTransfer = Math.min(TRANSFER_RATE, remainingEnergy);
-                int usedEnergy = consumer.handler.consume(consumerBlock, energyToTransfer);
+            int needed = getNeededEnergy(consumerInfo);
+            LogUtil.warn("      Нужно энергии: " + needed);
 
-                if (usedEnergy > 0) {
-                    generator.transferEnergy(usedEnergy);
-                    remainingEnergy -= usedEnergy;
-                    totalTransferred += usedEnergy;
-                    processedConsumers.add(consumerLoc);
+            if (needed <= 0) {
+                LogUtil.warn("      ⚠ Потребитель не нуждается в энергии");
+                continue;
+            }
+
+            int toTransfer = Math.min(Math.min(TRANSFER_RATE, availableEnergy), needed);
+            LogUtil.warn("      Будет передано: " + toTransfer);
+
+            if (toTransfer > 0) {
+                // Применяем энергию к потребителю
+                int used = consumerInfo.handler.consume(consumerInfo.block, toTransfer);
+                LogUtil.warn("      ✅ Передано: " + used);
+
+                if (used > 0) {
+                    // Уменьшаем энергию генератора
+                    generator.transferEnergy(used);
+                    availableEnergy -= used;
+                    totalTransferred += used;
 
                     // Визуальный эффект
                     spawnTransferEffect(generatorLoc, consumerLoc);
@@ -156,204 +218,59 @@ public class GeneratorBarrierService extends BukkitRunnable {
             }
         }
 
-        return totalTransferred;
-    }
-    /**
-     * Передает энергию потребителям
-     * @return количество переданной энергии
-     */
-    private int transferEnergyThroughCables(Generator generator) {
-        Location generatorLoc = generator.getLocation();
-        int remainingEnergy = generator.getEnergyLevel();
-        int totalTransferred = 0;
-
-        Set<Cable> nearbyCables = findNearbyCables(generatorLoc);
-        Set<Location> processedConsumers = new HashSet<>();
-
-        for (Cable cable : nearbyCables) {
-            if (remainingEnergy <= 0) break;
-
-            // ПРИНУДИТЕЛЬНОЕ СКАНИРОВАНИЕ ПЕРЕД ИСПОЛЬЗОВАНИЕМ
-            if (!cableManager.isCable(cable.getLocation().getBlock())) {
-                LogUtil.warn("Кабель больше не существует, пропускаем");
-                continue;
-            }
-            Block cableBlock = cable.getLocation().getBlock();
-            cable.scanConnections(cableBlock);
-
-            // Добавим задержку для отладки
-            try {
-                Thread.sleep(10); // Небольшая задержка для последовательности логирования
-            } catch (InterruptedException e) {}
-
-            // Получаем всех потребителей, подключенных к этому кабелю
-            Set<Location> consumers = cable.getConnectedConsumers();
-            LogUtil.warn("Кабель нашел потребителей: " + consumers.size());
-
-            if (consumers.isEmpty()) {
-                continue;
-            }
-
-            for (Location consumerLoc : consumers) {
-                if (remainingEnergy <= 0) break;
-                if (processedConsumers.contains(consumerLoc)) continue;
-
-                Block consumerBlock = consumerLoc.getBlock();
-                ConsumerInfo consumer = getConsumerIfCanAccept(consumerBlock);
-
-                if (consumer != null) {
-                    int energyToTransfer = Math.min(TRANSFER_RATE, remainingEnergy);
-                    int usedEnergy = consumer.handler.consume(consumerBlock, energyToTransfer);
-
-                    if (usedEnergy > 0) {
-                        generator.transferEnergy(usedEnergy);
-                        remainingEnergy -= usedEnergy;
-                        totalTransferred += usedEnergy;
-                        processedConsumers.add(consumerLoc);
-                        spawnCableTransferEffect(generatorLoc, cable.getLocation(), consumerLoc);
-                    }
-                }
-            }
-        }
-
+        LogUtil.warn("    Итого передано от этого генератора: " + totalTransferred);
         return totalTransferred;
     }
 
-    private boolean isValidConnection(Cable cable, Location consumerLoc, Location generatorLoc) {
-        Block cableBlock = cable.getLocation().getBlock();
-        Block consumerBlock = consumerLoc.getBlock();
+    private Set<Location> getNeighbors(Location loc) {
+        Set<Location> neighbors = new HashSet<>();
+        int[][] offsets = {{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}};
 
-        // 1. Проверяем, что потребитель действительно adjacent к кабелю
-        if (!areBlocksAdjacent(cableBlock, consumerBlock)) {
-            LogUtil.warn("Потребитель не adjacent к кабелю");
-            return false;
-        }
-
-        // 2. Проверяем, что кабель все еще существует
-        if (!cableManager.isCable(cableBlock)) {
-            LogUtil.warn("Кабель больше не существует");
-            return false;
-        }
-
-        // 3. Проверяем, что потребитель все еще существует
-        if (barrierManager.getMechanism(consumerLoc) == null) {
-            LogUtil.warn("Потребитель больше не существует");
-            return false;
-        }
-
-        // 4. Проверяем, что генератор все еще существует
-        if (generatorManager.getMechanism(generatorLoc) == null) {
-            LogUtil.warn("Генератор больше не существует");
-            return false;
-        }
-
-        return true;
-    }
-
-    private boolean areBlocksAdjacent(Block cableBlock, Block consumerBlock) {
-        if (cableBlock == null || consumerBlock == null) return false;
-
-        int dx = Math.abs(cableBlock.getX() - consumerBlock.getX());
-        int dy = Math.abs(cableBlock.getY() - consumerBlock.getY());
-        int dz = Math.abs(cableBlock.getZ() - consumerBlock.getZ());
-
-        // Блоки adjacent если разница по одной оси = 1, а по остальным = 0
-        return (dx == 1 && dy == 0 && dz == 0) ||
-                (dx == 0 && dy == 1 && dz == 0) ||
-                (dx == 0 && dy == 0 && dz == 1);
-    }
-
-    // Временный метод для проверки
-    private void checkBarrierDistance(Location cableLoc) {
-        LogUtil.warn("=== ПРОВЕРКА РАССТОЯНИЙ ДО БАРЬЕРОВ ===");
-
-        for (Barrier barrier : barrierManager.getAllMechanisms()) {
-            Location barrierLoc = barrier.getLocation();
-            double distance = cableLoc.distance(barrierLoc);
-
-            LogUtil.warn("Барьер на " + barrierLoc +
-                    " расстояние: " + distance + " блоков");
-
-            // Проверяем, являются ли они соседними
-            boolean isAdjacent = Math.abs(cableLoc.getBlockX() - barrierLoc.getBlockX()) <= 1 &&
-                    Math.abs(cableLoc.getBlockY() - barrierLoc.getBlockY()) <= 1 &&
-                    Math.abs(cableLoc.getBlockZ() - barrierLoc.getBlockZ()) <= 1;
-
-            LogUtil.warn("  Соседний блок? " + isAdjacent);
-
-            if (isAdjacent) {
-                LogUtil.warn("  ✅ Барьер должен быть найден при сканировании!");
+        for (int[] offset : offsets) {
+            Location neighbor = loc.clone().add(offset[0], offset[1], offset[2]);
+            if (cableManager != null && cableManager.isCable(neighbor.getBlock())) {
+                neighbors.add(neighbor);
             }
         }
+        return neighbors;
     }
-    /**
-     * Находит кабели рядом с локацией
-     */
-        private Set<Cable> findNearbyCables(Location center) {
-            Set<Cable> cables = new HashSet<>();
-            int radius = CABLE_SEARCH_RADIUS;
 
-            for (int x = -radius; x <= radius; x++) {
-                for (int y = -radius; y <= radius; y++) {
-                    for (int z = -radius; z <= radius; z++) {
-                        Location checkLoc = center.clone().add(x, y, z);
-                        Block block = checkLoc.getBlock();
+    private ConsumerInfo getConsumerInfo(Location loc) {
+        Block block = loc.getBlock();
 
-                        Cable cable = cableManager.getCable(block);
-                        if (cable != null) {
-                            cables.add(cable);
-                        }
-                    }
-                }
-            }
+        LogUtil.warn("      🔍 Проверка потребителя на " + formatLocation(loc));
 
-            return cables;
-        }
-    /**
-     * Проверяет, может ли блок потреблять энергию, и возвращает информацию о потребителе
-     */
-    private ConsumerInfo getConsumerIfCanAccept(Block block) {
-        if (block == null) return null;
-
-        Location loc = block.getLocation();
-        // Сейчас проверяет только барьеры:
         // Проверяем барьер
-        if (barrierManager.hasMechanism(loc)) { //Спрашивает у BarrierManager: "Есть ли на этих координатах зарегистрированный барьер?"
+        if (barrierManager.hasMechanism(loc)) {
+            LogUtil.warn("        ✓ Барьер найден в BarrierManager");
             Barrier barrier = barrierManager.getMechanism(loc);
-            if (barrier != null && barrier.getEnergyLevel() < barrier.getCapacity()) {
-                return new ConsumerInfo(block, MechanismType.BARRIER, consumerHandlers.get(MechanismType.BARRIER)); //Обработчик, который знает, как именно этот тип потребляет энергию
+            if (barrier != null) {
+                LogUtil.warn("        Энергия: " + barrier.getEnergyLevel() + "/" + barrier.getCapacity());
+                if (barrier.getEnergyLevel() < barrier.getCapacity()) {
+                    LogUtil.warn("        ✅ Может принимать энергию");
+                    return new ConsumerInfo(block, MechanismType.BARRIER,
+                            consumerHandlers.get(MechanismType.BARRIER));
+                } else {
+                    LogUtil.warn("        ❌ Уже полностью заряжен");
+                }
+            } else {
+                LogUtil.warn("        ❌ Барьер есть в hasMechanism, но getMechanism вернул null!");
+            }
+        } else {
+            LogUtil.warn("        ❌ Барьер НЕ найден в BarrierManager");
+        }
+
+        return null;
+    }
+
+    private int getNeededEnergy(ConsumerInfo consumer) {
+        if (consumer.type == MechanismType.BARRIER) {
+            Barrier barrier = barrierManager.getMechanism(consumer.block.getLocation());
+            if (barrier != null) {
+                return barrier.getCapacity() - barrier.getEnergyLevel();
             }
         }
-
-        // Здесь можно добавить другие типы потребителей
-
-        return null;
-    }
-
-    /**
-     * Проверяем, может ли блок потреблять энергию
-     */
-    public boolean isConsumer(Block block) {
-        return getConsumerIfCanAccept(block) != null;
-    }
-
-    /**
-     * Получает тип механизма из менеджеров
-     */
-    private MechanismType getMechanismType(Block block) {
-        if (block == null) return null;
-
-        Location loc = block.getLocation();
-
-        if (barrierManager.hasMechanism(loc)) {
-            return MechanismType.BARRIER;
-        }
-
-        if (generatorManager.hasMechanism(loc)) {
-            return MechanismType.GENERATOR;
-        }
-
-        return null;
+        return 0;
     }
 
     private void spawnTransferEffect(Location from, Location to) {
@@ -371,48 +288,11 @@ public class GeneratorBarrierService extends BukkitRunnable {
             // Игнорируем ошибки частиц
         }
     }
-    private void spawnCableTransferEffect(Location from, Location cableLoc, Location to) {
-        try {
-            // Эффект от генератора к кабелю
-            from.getWorld().spawnParticle(
-                    org.bukkit.Particle.END_ROD,
-                    from.clone().add(0.5, 1, 0.5),
-                    0,
-                    cableLoc.getX() - from.getX(),
-                    cableLoc.getY() - from.getY(),
-                    cableLoc.getZ() - from.getZ(),
-                    0.3
-            );
 
-            // Эффект от кабеля к потребителю
-            from.getWorld().spawnParticle(
-                    org.bukkit.Particle.END_ROD,
-                    cableLoc.clone().add(0.5, 0.5, 0.5),
-                    0,
-                    to.getX() - cableLoc.getX(),
-                    to.getY() - cableLoc.getY(),
-                    to.getZ() - cableLoc.getZ(),
-                    0.3
-            );
-        } catch (Exception e) {
-            // Игнорируем ошибки частиц
-        }
-    }
-    public void addConsumerType(MechanismType type, ConsumerHandler handler) {
-        //consumers.add(type);
-        if (handler != null) {
-            consumerHandlers.put(type, handler);
-        }
+    private String formatLocation(Location loc) {
+        return String.format("[%d %d %d]", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
     }
 
-    public void removeConsumerType(MechanismType type) {
-       // consumers.remove(type);
-        consumerHandlers.remove(type);
-    }
-
-    /**
-     * Вспомогательный класс для хранения информации о потребителе
-     */
     private static class ConsumerInfo {
         final Block block;
         final MechanismType type;
@@ -421,13 +301,11 @@ public class GeneratorBarrierService extends BukkitRunnable {
         ConsumerInfo(Block block, MechanismType type, ConsumerHandler handler) {
             this.block = block;
             this.type = type;
-            this.handler = handler; //Обработчик, который знает, как именно этот тип потребляет энергию
+            this.handler = handler;
         }
     }
-    public void onBlockChanged(Location location) {
-        networkManager.updateNetwork(location);
-    }
-    @FunctionalInterface //Действие для механизма
+
+    @FunctionalInterface
     public interface ConsumerHandler {
         int consume(Block block, int energy);
     }

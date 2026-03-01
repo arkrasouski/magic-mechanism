@@ -38,16 +38,12 @@ public abstract class BaseMechanism {
     public static BaseMechanism fromData(World world, MechanismData data, MechanismType type) {
         Location loc = new Location(world, data.x(), data.y(), data.z());
 
-        switch (type) {
-            case GENERATOR:
-                return new Generator(loc, data.owner(), data.energy(), data.maxEnergy());
-            case BARRIER:
-                return new Barrier(loc, data.owner(), data.energy(), data.maxEnergy());
-            case CABLE:
-                return new Cable(loc, data.owner(), data.energy(), data.maxEnergy());
-            default:
-                return null;
-        }
+        return switch (type) {
+            case GENERATOR -> new Generator(loc, data.owner(), data.energy(), data.maxEnergy());
+            case BARRIER -> new Barrier(loc, data.owner(), data.energy(), data.maxEnergy());
+            case CABLE -> new Cable(loc, data.owner(), data.energy(), data.maxEnergy());
+            default -> null;
+        };
     }
 
     // Геттеры и сеттеры

@@ -1,15 +1,10 @@
 package org.example.artyom.magicMechanism.mechanisms;
 
 import org.bukkit.Location;
-import org.bukkit.entity.Player;
-import org.example.artyom.magicMechanism.MagicMechanism;
 import org.example.artyom.magicMechanism.data.enums.MechanismType;
-import org.example.artyom.magicMechanism.data.interfaces.IEnergyHandler;
 import org.example.artyom.magicMechanism.data.records.MechanismData;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.utils.LogUtil;
-
-import java.util.Map;
 import java.util.UUID;
 
 public class Barrier extends BaseMechanism {

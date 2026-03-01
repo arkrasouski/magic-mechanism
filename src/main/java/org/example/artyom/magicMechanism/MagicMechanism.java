@@ -71,11 +71,11 @@ public final class MagicMechanism extends JavaPlugin {
         barrierManager = new BarrierManager(this);
         GeneratorGuiManager guiManager = new GeneratorGuiManager();
         cableManager = new CableManager(this);
-        networkManager = new NetworkManager(this);
+        networkManager = new NetworkManager(cableManager, genManager, barrierManager);
 
         //transfer
         GeneratorCellService genService = new GeneratorCellService(guiManager, genManager);
-
+        cableManager.setNetworkManager(networkManager);
 
 
         //load all mechanisms
@@ -83,7 +83,7 @@ public final class MagicMechanism extends JavaPlugin {
         barrierManager.loadAllMechanismsFromLoadedChunks();
 
         //Передаем энергию из генератора барьеру
-        energyTicker = new GeneratorBarrierService(this, genManager, barrierManager, cableManager, networkManager);
+        energyTicker = new GeneratorBarrierService(this, genManager, barrierManager, cableManager, networkManager, cableManager);
         energyTicker.runTaskTimer(this, 20L, 20L);
 
         //commands
@@ -93,9 +93,9 @@ public final class MagicMechanism extends JavaPlugin {
         getCommand("getcable").setExecutor(new GeneratorCommands(this));
 
         //events
-        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(this, genManager, guiManager, energyTicker), this);
-        Bukkit.getPluginManager().registerEvents(new BarrierEvents(this, barrierManager, databaseManager, energyTicker), this);
-        Bukkit.getPluginManager().registerEvents(new CableEvents(this, energyTicker), this);
+        Bukkit.getPluginManager().registerEvents(new GeneratorEvents(this, genManager, guiManager, energyTicker, networkManager), this);
+        Bukkit.getPluginManager().registerEvents(new BarrierEvents(this, barrierManager, databaseManager, energyTicker, networkManager), this);
+        Bukkit.getPluginManager().registerEvents(new CableEvents(this, cableManager, networkManager), this);
 
         LogUtil.info("Плагин загружен!");
 
@@ -161,6 +161,10 @@ public final class MagicMechanism extends JavaPlugin {
 
     public CableManager getCableManager() {
         return cableManager;
+    }
+
+    public NetworkManager getNetworkManager() {
+        return networkManager;
     }
 
     public static MagicMechanism getInstance() {

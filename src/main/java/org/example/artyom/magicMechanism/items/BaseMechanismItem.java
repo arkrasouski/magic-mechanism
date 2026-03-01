@@ -34,7 +34,7 @@ public class BaseMechanismItem {
         if (meta == null) return item;
 
         // Устанавливаем название
-        meta.setDisplayName("§6⚡ " + this.mechanismType.getGuiTitle() + " ⚡");
+        meta.setDisplayName("§6⚡ " + this.mechanismType.getDisplayName() + " ⚡");
 
         // Устанавливаем описание
         List<String> lore = new ArrayList<>();

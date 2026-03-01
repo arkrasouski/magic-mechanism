@@ -2,6 +2,7 @@ package org.example.artyom.magicMechanism.utils;
 
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 
 public class BlockUtil {
     public static boolean isReplaceableBlock(Block block) {
@@ -35,4 +36,10 @@ public class BlockUtil {
                 type == Material.REPEATER ||
                 type == Material.COMPARATOR;
     }
+
+    public static final BlockFace[] FACES = {
+            BlockFace.NORTH, BlockFace.SOUTH,
+            BlockFace.EAST, BlockFace.WEST,
+            BlockFace.UP, BlockFace.DOWN
+    };
 }

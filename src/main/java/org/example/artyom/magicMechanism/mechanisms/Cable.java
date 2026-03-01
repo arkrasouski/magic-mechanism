@@ -14,30 +14,30 @@ import org.example.artyom.magicMechanism.data.records.MechanismData;
 import org.example.artyom.magicMechanism.managers.BarrierManager;
 import org.example.artyom.magicMechanism.managers.CableManager;
 import org.example.artyom.magicMechanism.managers.GeneratorManager;
+import org.example.artyom.magicMechanism.managers.NetworkManager;
+import org.example.artyom.magicMechanism.network.EnergyNetwork;
 import org.example.artyom.magicMechanism.utils.LogUtil;
 
+import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-public class Cable extends BaseMechanism implements IEnergyNetwork {
-    private MagicMechanism plugin;
-    private static final int TRANSFER_RATE = 10;
-    private final Set<Location> connectedCables = new HashSet<>();
-    private final Set<Location> connectedMachines = new HashSet<>();
-    private final Set<Location> connectedGenerators = new HashSet<>();
-    private final Set<Location> connectedConsumers = new HashSet<>();
-    private static final MechanismType mechanismType = MechanismType.CABLE;
+import static org.example.artyom.magicMechanism.utils.BlockUtil.FACES;
 
-    private final GeneratorManager generatorManager;
-    private final BarrierManager barrierManager;
-    private final int energyLevel = 0;
+public class Cable extends BaseMechanism {
+    private MagicMechanism plugin;
+    private final Set<Location> directConnections = new HashSet<>(); // только прямые соседи
+    private NetworkManager networkManager;
+    private BarrierManager barrierManager;
+    private GeneratorManager generatorManager;
+    private CableManager cableManager;
+    // Ленивая инициализация ключа
+    private EnergyNetwork network;
+    private static NamespacedKey cableKey;
     private long lastScanTime = 0;
     private static final long SCAN_COOLDOWN = 1000;
-
-    // Ленивая инициализация ключа
-    private static NamespacedKey cableKey;
 
     private static NamespacedKey getCableKey() {
         if (cableKey == null) {
@@ -51,17 +51,21 @@ public class Cable extends BaseMechanism implements IEnergyNetwork {
 
     public Cable (Location location, UUID owner, int energyLevel, int capacity) {
         super(location, MechanismType.CABLE, owner, capacity);
-        energyLevel = energyLevel;
         plugin = MagicMechanism.getInstance();
-        generatorManager = plugin.getGeneratorManager();
-        barrierManager = plugin.getBarrierManager();
+        this.generatorManager = plugin.getGeneratorManager();
+        this.barrierManager = plugin.getBarrierManager();
+        this.networkManager = plugin.getNetworkManager();
+        this.cableManager = plugin.getCableManager();
     }
 
     private Cable(Location location, UUID owner) {
         super(location, MechanismType.CABLE, owner, 2);
         plugin = MagicMechanism.getInstance();
-        generatorManager = plugin.getGeneratorManager();
-        barrierManager = plugin.getBarrierManager();
+        this.generatorManager = plugin.getGeneratorManager();
+        this.barrierManager = plugin.getBarrierManager();
+        this.networkManager = plugin.getNetworkManager();
+        this.cableManager = plugin.getCableManager();
+
     }
 
     // Фабричный метод для СОЗДАНИЯ нового кабеля (при размещении)
@@ -100,186 +104,120 @@ public class Cable extends BaseMechanism implements IEnergyNetwork {
         return location;
     }
 
-    /**
-     * Сканирует соседние блоки и обновляет соединения в памяти
-     */
-    public void scanConnections(Block block) {
-        long now = System.currentTimeMillis();
-        if (now - lastScanTime < SCAN_COOLDOWN) {
-            LogUtil.warn("СКАНИРОВАНИЕ ПРОПУЩЕНО (cooldown)");
-            return;
-        }
-        lastScanTime = now;
-
-        connectedCables.clear();
-        connectedMachines.clear();
-        connectedGenerators.clear();
-        connectedConsumers.clear();
-
-        LogUtil.warn("========== СКАНИРОВАНИЕ КАБЕЛЯ ==========");
-        LogUtil.warn("Кабель на: " + location);
-        LogUtil.warn("Блок: " + block.getType());
-
-        BlockFace[] faces = {
-                BlockFace.NORTH, BlockFace.SOUTH,
-                BlockFace.EAST, BlockFace.WEST,
-                BlockFace.UP, BlockFace.DOWN
-        };
-
-        CableManager cableManager = plugin.getCableManager();
-        GeneratorManager generatorManager = plugin.getGeneratorManager();
-        BarrierManager barrierManager = plugin.getBarrierManager();
-
-        for (BlockFace face : faces) {
-            Block neighbor = block.getRelative(face);
-            Location neighborLoc = neighbor.getLocation();
-
-            LogUtil.warn("--- Проверка направления: " + face + " ---");
-            LogUtil.warn("Сосед: " + neighborLoc);
-
-            // 1. Проверяем кабели
-            if (cableManager.isCable(neighbor)) {
-                LogUtil.warn("✓ НАЙДЕН КАБЕЛЬ");
-                connectedCables.add(neighborLoc);
-                continue;
+    public Set<Location> scanDirectConnections(Block block) {
+        
+            long now = System.currentTimeMillis();
+            if (now - lastScanTime < SCAN_COOLDOWN) {
+                LogUtil.warn("🕐 СКАНИРОВАНИЕ ПРОПУЩЕНО (cooldown) - используем кэш: " + directConnections.size() + " соседей");
+                return new HashSet<>(directConnections);
             }
+            lastScanTime = now;
 
-            // 2. Проверяем генераторы
-            Generator generator = generatorManager.getMechanism(neighborLoc);
-            if (generator != null) {
-                LogUtil.warn("✓ НАЙДЕН ГЕНЕРАТОР");
-                connectedGenerators.add(neighborLoc);
-                continue;
-            }
+            Set<Location> olddirectConnections = new HashSet<>(directConnections);
+            directConnections.clear();
 
-            // 3. Проверяем барьеры - ИСПРАВЛЕНО!
-            Barrier barrier = barrierManager.getMechanism(neighborLoc);
-            if (barrier != null) {
-                LogUtil.warn("✓ НАЙДЕН БАРЬЕР!");
-                connectedMachines.add(neighborLoc);
-                connectedConsumers.add(neighborLoc); // ← КРИТИЧЕСКИ ВАЖНО!
-            } else {
-                LogUtil.warn("✗ БАРЬЕР НЕ НАЙДЕН");
-            }
-        }
+            LogUtil.warn("========== 🔍 СКАНИРОВАНИЕ КАБЕЛЯ ==========");
+            LogUtil.warn("📍 Кабель на: " + formatLocation(location));
+            LogUtil.warn("🔲 Блок: " + block.getType());
 
-        LogUtil.warn("========== ИТОГИ СКАНИРОВАНИЯ ==========");
-        LogUtil.warn("connectedConsumers: " + connectedConsumers.size());
-    }
+            BlockFace[] faces = {
+                    BlockFace.NORTH, BlockFace.SOUTH,
+                    BlockFace.EAST, BlockFace.WEST,
+                    BlockFace.UP, BlockFace.DOWN
+            };
 
+            MagicMechanism plugin = MagicMechanism.getInstance();
+            CableManager cableManager = plugin.getCableManager();
+            GeneratorManager generatorManager = plugin.getGeneratorManager();
+            BarrierManager barrierManager = plugin.getBarrierManager();
 
+            LogUtil.warn("📋 Проверяем 6 направлений:");
 
+            for (BlockFace face : faces) {
+                Block neighbor = block.getRelative(face);
+                Location neighborLoc = neighbor.getLocation();
 
-    // ================ IEnergyNetwork ==========================
+                LogUtil.warn("  → Направление " + face + ": " + formatLocation(neighborLoc));
 
-    @Override
-    public Set<Location> getConnectedConsumers() {
-        return Collections.unmodifiableSet(connectedConsumers);
-    }
+                // 1. Проверяем кабели
+                if (cableManager != null && cableManager.isCable(neighbor)) {
+                    LogUtil.warn("    ✅ НАЙДЕН КАБЕЛЬ!");
+                    directConnections.add(neighborLoc);
+                    continue;
+                }
 
-    @Override
-    public Set<Location> getConnectedGenerators() {
-        return Collections.unmodifiableSet(connectedGenerators);
-    }
-
-    @Override
-    public int transferEnergy(int amount, Location from) {
-        if (amount <= 0) return 0;
-
-        int remainingEnergy = amount;
-        int totalTransferred = 0;
-
-        for (Location consumerLoc : connectedConsumers) {
-            if (remainingEnergy <= 0) break;
-
-            if (barrierManager.hasMechanism(consumerLoc)) {
-                Barrier barrier = barrierManager.getMechanism(consumerLoc);
-                if (barrier != null && barrier.getEnergyLevel() < barrier.getCapacity()) {
-                    int energyToTransfer = Math.min(TRANSFER_RATE, remainingEnergy);
-                    int currentEnergy = barrier.getEnergyLevel();
-                    int maxStorage = barrier.getCapacity();
-
-                    int newEnergy = Math.min(currentEnergy + energyToTransfer, maxStorage);
-                    int usedEnergy = newEnergy - currentEnergy;
-
-                    if (usedEnergy > 0) {
-                        barrier.setEnergyLevel(newEnergy);
-                        barrierManager.saveMechanism(barrier);
-
-                        remainingEnergy -= usedEnergy;
-                        totalTransferred += usedEnergy;
-
-                        LogUtil.warn(String.format("Кабель передал %d энергии барьеру %s. Теперь: %d/%d",
-                                usedEnergy, consumerLoc, newEnergy, maxStorage));
+                // 2. Проверяем генераторы
+                if (generatorManager != null) {
+                    Generator generator = generatorManager.getMechanism(neighborLoc);
+                    if (generator != null) {
+                        LogUtil.warn("    ✅ НАЙДЕН ГЕНЕРАТОР! Энергия: " + generator.getEnergyLevel() + "/" + generator.getCapacity());
+                        directConnections.add(neighborLoc);
+                        continue;
                     }
                 }
+
+                // 3. Проверяем барьеры
+                if (barrierManager != null) {
+                    Barrier barrier = barrierManager.getMechanism(neighborLoc);
+                    if (barrier != null) {
+                        LogUtil.warn("    ✅ НАЙДЕН БАРЬЕР! Энергия: " + barrier.getEnergyLevel() + "/" + barrier.getCapacity());
+                        directConnections.add(neighborLoc);
+                        continue;
+                    }
+                }
+
+                LogUtil.warn("    ❌ НИЧЕГО НЕ НАЙДЕНО");
             }
+
+            LogUtil.warn("========== 📊 ИТОГИ СКАНИРОВАНИЯ ==========");
+            LogUtil.warn("  Всего соседей: " + directConnections.size());
+            for (Location loc : directConnections) {
+                String type = getNeighborType(loc);
+                LogUtil.warn("    • " + type + " на " + formatLocation(loc));
+            }
+
+            // Если соседей нет, выводим возможные причины
+            if (directConnections.isEmpty()) {
+                LogUtil.warn("⚠ ВНИМАНИЕ: Соседей не найдено! Возможные причины:");
+                LogUtil.warn("  - Генератор/барьер не зарегистрированы в менеджерах");
+                LogUtil.warn("  - Блоки находятся не рядом (проверь координаты)");
+                LogUtil.warn("  - Проблема с PDC метками");
+            }
+
+            // Проверяем, изменились ли соседи
+            if (!olddirectConnections.equals(directConnections)) {
+                LogUtil.warn("🔄 СОСТАВ СОСЕДЕЙ ИЗМЕНИЛСЯ!");
+                LogUtil.warn("  Было: " + olddirectConnections.size() + " соседей");
+                LogUtil.warn("  Стало: " + directConnections.size() + " соседей");
+            }
+
+            LogUtil.warn("=================================");
+
+            return new HashSet<>(directConnections);
         }
 
-        return totalTransferred;
-    }
-
-    @Override
-    public boolean isInNetwork(Location loc) {
-        return connectedCables.contains(loc) ||
-                connectedMachines.contains(loc) ||
-                connectedGenerators.contains(loc) ||
-                connectedConsumers.contains(loc);
-    }
-
-    @Override
-    public Set<Location> getAllConnections() {
-        Set<Location> all = new HashSet<>();
-        all.addAll(connectedCables);
-        all.addAll(connectedMachines);
-        all.addAll(connectedGenerators);
-        all.addAll(connectedConsumers);
-        return Collections.unmodifiableSet(all);
-    }
-
-    // ===========================
-
-    public Set<Location> getConnectedCables() {
-        return Collections.unmodifiableSet(connectedCables);
-    }
-
-    public Set<Location> getConnectedMachines() {
-        return Collections.unmodifiableSet(connectedMachines);
-    }
-
-    /**
-     * Проверяет, является ли блок проводом
-     */
-    public boolean isCable(Block block) {
-        if (block == null || block.isEmpty()) return false;
-
-        NamespacedKey key = getCableKey();
-        if (key == null) return false;
-
-        try {
-            PersistentDataContainer pdc = new CustomBlockData(block, plugin);
-            LogUtil.warn(pdc.has(key, PersistentDataType.BOOLEAN) +"" +key);
-            return pdc.has(key, PersistentDataType.BOOLEAN);
-        } catch (Exception e) {
-            LogUtil.warn("Error checking cable: " + e.getMessage());
-            return false;
+        private String formatLocation(Location loc) {
+            return String.format("[%d %d %d]", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
         }
-    }
 
-    /**
-     * Статический метод для проверки (если нужен)
-     */
-    public static boolean isCableStatic(Block block) {
-        if (block == null || block.isEmpty()) return false;
-
-        NamespacedKey key = getCableKey();
-        if (key == null) return false;
-
-        try {
-            PersistentDataContainer pdc = new CustomBlockData(block, MagicMechanism.getInstance());
-            return pdc.has(key, PersistentDataType.BOOLEAN);
-        } catch (Exception e) {
-            return false;
+        private String getNeighborType(Location loc) {
+            MagicMechanism plugin = MagicMechanism.getInstance();
+            if (plugin.getCableManager().isCable(loc.getBlock())) return "КАБЕЛЬ";
+            if (plugin.getGeneratorManager().hasMechanism(loc)) return "ГЕНЕРАТОР";
+            if (plugin.getBarrierManager().hasMechanism(loc)) return "БАРЬЕР";
+            return "НЕИЗВЕСТНО";
         }
+
+    public void setNetwork(EnergyNetwork network) {
+        this.network = network;
     }
+
+    public EnergyNetwork getNetwork() {
+        return network;
+    }
+
+    public Set<Location> getDirectConnections() {
+        return Collections.unmodifiableSet(directConnections);
+    }
+
 }

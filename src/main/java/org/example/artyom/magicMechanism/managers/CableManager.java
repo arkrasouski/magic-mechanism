@@ -4,7 +4,6 @@ import com.jeff_media.customblockdata.CustomBlockData;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -19,16 +18,24 @@ public class CableManager {
 
     private final MagicMechanism plugin;
     private final NamespacedKey cableKey;
-    private final Map<Location, Cable> cableCache = new HashMap<>(); // Кэш для быстрого доступа
+    private final Map<Location, Cable> cableCache = new HashMap<>();
+
+    // Ссылки на другие менеджеры
+    private NetworkManager networkManager;
+    private GeneratorManager generatorManager;
+    private BarrierManager barrierManager;
 
     public CableManager(MagicMechanism plugin) {
         this.plugin = plugin;
         this.cableKey = new NamespacedKey(plugin, "is_cable");
 
-        // Регистрируем слушатель для CustomBlockData
         CustomBlockData.registerListener(plugin);
         LogUtil.info("CableManager инициализирован");
     }
+    public void setNetworkManager(NetworkManager networkManager) {
+        this.networkManager = networkManager;
+    }
+
 
     /**
      * Пометить блок как кабель и создать обработчик
@@ -36,53 +43,32 @@ public class CableManager {
     public void markAsCable(Block block, Player owner) {
         Location loc = block.getLocation();
 
-        LogUtil.warn("=== НАЧАЛО markAsCable ===");
-        LogUtil.warn("Блок: " + loc);
-        LogUtil.warn("Материал: " + block.getType());
-
         try {
             // 1. Сохраняем в PDC
             PersistentDataContainer pdc = new CustomBlockData(block, plugin);
-
-            // Проверяем, не был ли блок уже кабелем
-            if (pdc.has(cableKey, PersistentDataType.BOOLEAN)) {
-                LogUtil.warn("Блок уже был кабелем! Обновляем...");
-            }
-
-            // Устанавливаем метку
             pdc.set(cableKey, PersistentDataType.BOOLEAN, true);
-            LogUtil.warn("✓ Метка кабеля установлена в PDC");
 
-            // Проверяем, что метка сохранилась
-            boolean saved = pdc.has(cableKey, PersistentDataType.BOOLEAN);
-            if (!saved) {
-                LogUtil.warn("⚠ ОШИБКА: Метка не сохранилась в PDC!");
-                return;
-            }
-
-            LogUtil.warn("✓ Метка подтверждена в PDC");
-
-            // 2. ИСПОЛЬЗУЕМ ФАБРИЧНЫЙ МЕТОД для создания кабеля
+            // 2. Создаем кабель (пока без сети)
             Cable cable = Cable.create(loc, owner.getUniqueId(), this);
-            LogUtil.warn("✓ Кабель создан через фабрику");
 
-            // 3. Сканируем соединения
-            cable.scanConnections(block);
-            LogUtil.warn("✓ Соединения отсканированы");
+            // 3. Сканируем соседей
+            Set<Location> neighbors = cable.scanDirectConnections(block);
 
-            // 4. Обновляем соседние кабели
-            updateNeighborCables(block, owner);
-            LogUtil.warn("✓ Соседние кабели обновлены");
+            // 4. NetworkManager сам определит и установит нужную сеть!
+            if (networkManager != null) {
+                networkManager.onCablePlaced(cable, loc);
+            }
 
             LogUtil.info("✅ Кабель успешно размещен на " + loc);
 
         } catch (Exception e) {
-            LogUtil.warn("❌ ОШИБКА в markAsCable: " + e.getMessage());
             e.printStackTrace();
         }
-
-        LogUtil.warn("=== КОНЕЦ markAsCable ===");
     }
+
+    /**
+     * Проверить, является ли блок кабелем (по PDC)
+     */
     public boolean isCable(Block block) {
         if (block == null || block.isEmpty()) {
             return false;
@@ -90,214 +76,109 @@ public class CableManager {
 
         try {
             PersistentDataContainer pdc = new CustomBlockData(block, plugin);
-
-            // ВАЖНО: Используем BOOLEAN, а не STRING!
-            boolean hasKey = pdc.has(cableKey, PersistentDataType.BOOLEAN);
-
-            if (hasKey) {
-                // Читаем как BOOLEAN
-                Boolean value = pdc.get(cableKey, PersistentDataType.BOOLEAN);
-                LogUtil.warn("Кабель найден в PDC, значение: " + value);
-                return value;
-            }
-
-            return false;
-
+            return pdc.has(cableKey, PersistentDataType.BOOLEAN);
         } catch (Exception e) {
-            LogUtil.warn("Ошибка в isCable: " + e.getMessage());
             return false;
         }
     }
+
     /**
-     * Получить кабель из блока (с проверкой кэша)
+     * Проверить по локации (удобно для NetworkManager)
+     */
+    public boolean isCable(Location loc) {
+        if (loc == null || loc.getWorld() == null) return false;
+        return isCable(loc.getBlock());
+    }
+
+    /**
+     * Получить кабель из блока
      */
     public Cable getCable(Block block) {
         if (block == null) return null;
-        Location loc = block.getLocation();
+        return getCable(block.getLocation());
+    }
+
+    /**
+     * Получить кабель по локации
+     */
+    public Cable getCable(Location loc) {
+        if (loc == null) return null;
 
         // Сначала проверяем кэш
-        if (cableCache.containsKey(loc)) {
-            LogUtil.warn("Кабель найден в кэше: " + loc);
-            return cableCache.get(loc);
-        }
-
-        // Если нет в кэше, проверяем PDC напрямую
-        if (isCable(block)) {  // Используем прямой метод проверки
-            LogUtil.warn("Кабель найден в PDC, создаем новый: " + loc);
-            Cable cable = Cable.create(loc, null, this);
-            LogUtil.warn("✓ Кабель создан через фабрику");
-            cableCache.put(loc, cable);
-            cable.scanConnections(block);
+        Cable cable = cableCache.get(loc);
+        if (cable != null) {
             return cable;
         }
 
+        // Если нет в кэше, проверяем PDC
+        if (isCable(loc.getBlock())) {
+            // Загружаем из конфига или создаем с null owner
+            MechanismData data = loadCableData(loc);
+            cable = Cable.load(loc, data != null ? data :
+                    new MechanismData(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(),
+                            0, 0, true, null), this);
 
+
+
+            // Кэшируем
+            cableCache.put(loc, cable);
+
+            // Уведомляем NetworkManager о загруженном кабеле
+            if (networkManager != null) {
+                networkManager.onCablePlaced(cable, loc);
+            }
+
+            return cable;
+        }
 
         return null;
     }
-    // Добавление кабеля (вызывается из фабрики)
+
+    /**
+     * Добавить кабель в менеджер (вызывается из фабрики)
+     */
     public void addCable(Location location, Cable cable) {
         cableCache.put(location, cable);
         saveCable(cable);
+        if (networkManager != null) {
+            LogUtil.warn("📢 Уведомляем NetworkManager о новом кабеле " + location);
+            networkManager.onCablePlaced(cable, location);
+        }
         LogUtil.warn("Кабель добавлен в менеджер: " + location);
     }
-    /**
-     * Проверить, является ли блок кабелем (по PDC)
-     */
 
-    // Сохранение кабеля
-    public void saveCable(Cable cable) {
-        MechanismData data = cable.toData();
-        String path = "cables." + locationToString(cable.getLocation());
-
-        // Сохраняем данные кабеля
-        plugin.getConfig().set(path + ".x", data.x());
-        plugin.getConfig().set(path + ".y", data.y());
-        plugin.getConfig().set(path + ".z", data.z());
-        plugin.getConfig().set(path + ".active", data.active());
-
-        plugin.saveConfig();
-    }
-
-    private String locationToString(Location loc) {
-        return loc.getWorld().getName() + "_" +
-                loc.getBlockX() + "_" +
-                loc.getBlockY() + "_" +
-                loc.getBlockZ();
-    }
     /**
      * Удалить кабель
      */
     public void removeCable(Block block, Player owner) {
         Location loc = block.getLocation();
+        Cable cable = cableCache.get(loc);
 
-        // Удаляем из кэша и EnergyManager
-        cableCache.remove(loc);
+        // 1. Уведомляем NetworkManager ДО удаления
+        if (networkManager != null && cable != null) {
+            networkManager.onCableRemoved(loc);
+        }
 
-        // Удаляем из PDC
+        // 2. Удаляем из PDC
         PersistentDataContainer pdc = new CustomBlockData(block, plugin);
         pdc.remove(cableKey);
 
-        // Обновляем соседние кабели
-        updateNeighborCables(block, owner);
+        // 3. Удаляем из кэша
+        cableCache.remove(loc);
+
+        // 4. Удаляем из конфига
+        removeCableFromConfig(loc);
+
+        // 5. Обновляем соседние кабели (они должны пересканировать соседей)
+        updateNeighborsAfterRemoval(block);
+
         LogUtil.info("Кабель удален с " + loc);
     }
 
     /**
-     * Загрузить все кабели из загруженных чанков
+     * Обновить соседей после удаления кабеля
      */
-    private void loadAllCables() {
-        for (World world : Bukkit.getWorlds()) {
-            for (Chunk chunk : world.getLoadedChunks()) {
-                loadCablesInChunk(chunk);
-            }
-        }
-    }
-
-    /**
-     * Загрузить кабели в конкретном чанке
-     */
-    public void loadCablesInChunk(Chunk chunk) {
-        World world = chunk.getWorld();
-        int chunkX = chunk.getX();
-        int chunkZ = chunk.getZ();
-
-        LogUtil.warn("=== ЗАГРУЗКА КАБЕЛЕЙ В ЧАНКЕ " + chunkX + "," + chunkZ + " ===");
-
-        // Загружаем из конфига данные для этого чанка
-        Map<Location, MechanismData> cableData = loadCableDataFromConfig(chunk);
-
-        // Проходим по всем блокам в чанке
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                for (int y = world.getMinHeight(); y < world.getMaxHeight(); y++) {
-                    Block block = chunk.getBlock(x, y, z);
-                    Location loc = block.getLocation();
-
-                    // Быстрая проверка материала
-                    if (!isCable(block)) {
-                        continue;
-                    }
-
-                    // Проверяем PDC
-                    if (isCable(block)) {
-                        // Пропускаем, если уже в кэше
-                        if (cableCache.containsKey(loc)) {
-                            continue;
-                        }
-
-                        // Получаем данные из конфига или создаем с null owner
-                        MechanismData data = cableData.get(loc);
-                        UUID owner = (data != null) ? data.owner() : null;
-
-                        // СОЗДАЕМ КАБЕЛЬ ЧЕРЕЗ ФАБРИКУ С OWNER
-                        Cable cable = Cable.load(loc, data != null ? data :
-                                new MechanismData(x, y, z, 0, 0, true, null), this);
-
-                        // Сканируем соединения
-                        cable.scanConnections(block);
-
-                        LogUtil.warn("  ✓ Загружен кабель: " + loc + " владелец: " + owner);
-                    }
-                }
-            }
-        }
-
-        LogUtil.warn("=== ИТОГ ЗАГРУЗКИ ЧАНКА ===");
-        LogUtil.warn("Всего кабелей в кэше: " + cableCache.size());
-    }
-
-    /**
-     * Загружает данные кабелей для чанка из конфига
-     */
-    private Map<Location, MechanismData> loadCableDataFromConfig(Chunk chunk) {
-        Map<Location, MechanismData> result = new HashMap<>();
-        String chunkKey = chunk.getWorld().getName() + "_" + chunk.getX() + "_" + chunk.getZ();
-
-        if (!plugin.getConfig().contains("cables." + chunkKey)) {
-            return result;
-        }
-
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("cables." + chunkKey);
-        for (String key : section.getKeys(false)) {
-            try {
-                int x = section.getInt(key + ".x");
-                int y = section.getInt(key + ".y");
-                int z = section.getInt(key + ".z");
-                int energy = section.getInt(key + ".energy", 0);
-                int maxEnergy = section.getInt(key + ".maxEnergy", 0);
-                boolean active = section.getBoolean(key + ".active", true);
-
-                UUID owner = null;
-                if (section.contains(key + ".owner")) {
-                    owner = UUID.fromString(section.getString(key + ".owner"));
-                }
-
-                Location loc = new Location(chunk.getWorld(), x, y, z);
-                result.put(loc, new MechanismData(x, y, z, energy, maxEnergy, active, owner));
-
-            } catch (Exception e) {
-                LogUtil.warn("Ошибка загрузки данных кабеля: " + e.getMessage());
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Выгрузить кабели в чанке (при выгрузке чанка)
-     */
-    public void unloadCablesInChunk(Chunk chunk) {
-        // Удаляем из кэша все кабели в этом чанке
-        cableCache.entrySet().removeIf(entry ->
-                entry.getKey().getChunk().equals(chunk)
-        );
-    }
-
-    /**
-     * Обновить соседние кабели
-     */
-    public void updateNeighborCables(Block block, Player owner) {
+    private void updateNeighborsAfterRemoval(Block block) {
         BlockFace[] faces = {
                 BlockFace.NORTH, BlockFace.SOUTH,
                 BlockFace.EAST, BlockFace.WEST,
@@ -308,41 +189,203 @@ public class CableManager {
             Block neighbor = block.getRelative(face);
             Cable neighborCable = getCable(neighbor);
             if (neighborCable != null) {
-                neighborCable.scanConnections(neighbor);
+                // Пересканируем соседей
+                Set<Location> newNeighbors = neighborCable.scanDirectConnections(neighbor);
+
+                // Уведомляем NetworkManager об изменении
+                if (networkManager != null) {
+                    networkManager.onCableNeighborsChanged(neighbor.getLocation(), newNeighbors);
+                }
             }
         }
     }
 
+    // ========== РАБОТА С КОНФИГОМ ==========
 
     /**
-     * Найти сеть для блока (рекурсивно)
+     * Сохранить кабель в конфиг
      */
-    public Set<Cable> findNetwork(Block startBlock, Player owner) {
-        Set<Cable> network = new HashSet<>();
-        Set<Location> visited = new HashSet<>();
+    public void saveCable(Cable cable) {
+        MechanismData data = cable.toData();
+        String path = getConfigPath(cable.getLocation());
 
-        findNetworkRecursive(startBlock, owner, network, visited);
+        plugin.getConfig().set(path + ".x", data.x());
+        plugin.getConfig().set(path + ".y", data.y());
+        plugin.getConfig().set(path + ".z", data.z());
+        plugin.getConfig().set(path + ".active", data.active());
+        if (data.owner() != null) {
+            plugin.getConfig().set(path + ".owner", data.owner().toString());
+        }
 
-        return network;
+        plugin.saveConfig();
     }
 
-    private void findNetworkRecursive(Block block, Player owner, Set<Cable> network, Set<Location> visited) {
-        if (block == null) return;
+    /**
+     * Удалить кабель из конфига
+     */
+    private void removeCableFromConfig(Location loc) {
+        String path = getConfigPath(loc);
+        plugin.getConfig().set(path, null);
+        plugin.saveConfig();
+    }
 
-        Location loc = block.getLocation();
-        if (visited.contains(loc)) return;
-        visited.add(loc);
+    /**
+     * Загрузить данные кабеля из конфига
+     */
+    private MechanismData loadCableData(Location loc) {
+        String path = getConfigPath(loc);
 
-        Cable cable = getCable(block);
-        if (cable != null) {
-            network.add(cable);
+        if (!plugin.getConfig().contains(path)) {
+            return null;
+        }
 
-            // Рекурсивно проверяем все подключенные кабели
-            for (Location cableLoc : cable.getConnectedCables()) {
-                Block cableBlock = cableLoc.getBlock();
-                findNetworkRecursive(cableBlock, owner, network, visited);
+        try {
+            int x = plugin.getConfig().getInt(path + ".x");
+            int y = plugin.getConfig().getInt(path + ".y");
+            int z = plugin.getConfig().getInt(path + ".z");
+            int energy = plugin.getConfig().getInt(path + ".energy", 0);
+            int maxEnergy = plugin.getConfig().getInt(path + ".maxEnergy", 0);
+            boolean active = plugin.getConfig().getBoolean(path + ".active", true);
+
+            UUID owner = null;
+            if (plugin.getConfig().contains(path + ".owner")) {
+                owner = UUID.fromString(plugin.getConfig().getString(path + ".owner"));
+            }
+
+            return new MechanismData(x, y, z, energy, maxEnergy, active, owner);
+
+        } catch (Exception e) {
+            LogUtil.warn("Ошибка загрузки данных кабеля: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String getConfigPath(Location loc) {
+        return "cables." + loc.getWorld().getName() + "_" +
+                loc.getBlockX() + "_" +
+                loc.getBlockY() + "_" +
+                loc.getBlockZ();
+    }
+
+    // ========== ЗАГРУЗКА/ВЫГРУЗКА ЧАНКОВ ==========
+
+    /**
+     * Загрузить кабели в чанке
+     */
+    public void loadCablesInChunk(Chunk chunk) {
+        World world = chunk.getWorld();
+
+        LogUtil.warn("=== ЗАГРУЗКА КАБЕЛЕЙ В ЧАНКЕ " + chunk.getX() + "," + chunk.getZ() + " ===");
+
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                for (int y = world.getMinHeight(); y < world.getMaxHeight(); y++) {
+                    Block block = chunk.getBlock(x, y, z);
+
+                    if (!isCable(block)) {
+                        continue;
+                    }
+
+                    Location loc = block.getLocation();
+
+                    // Пропускаем, если уже в кэше
+                    if (cableCache.containsKey(loc)) {
+                        continue;
+                    }
+
+                    // Загружаем данные
+                    MechanismData data = loadCableData(loc);
+
+                    // Создаем кабель
+                    Cable cable = Cable.load(loc, data != null ? data :
+                            new MechanismData(x, y, z, 0, 0, true, null), this);
+
+                    // Сканируем соседей
+                    Set<Location> neighbors = cable.scanDirectConnections(block);
+
+                    // Кэшируем
+                    cableCache.put(loc, cable);
+
+                    // Уведомляем NetworkManager
+                    if (networkManager != null) {
+                        networkManager.onCablePlaced(cable, loc);
+                    }
+
+                    LogUtil.warn("  ✓ Загружен кабель: " + loc);
+                }
             }
         }
+
+        LogUtil.warn("=== ИТОГ ЗАГРУЗКИ ЧАНКА ===");
+        LogUtil.warn("Всего кабелей в кэше: " + cableCache.size());
+    }
+
+    /**
+     * Выгрузить кабели в чанке
+     */
+    public void unloadCablesInChunk(Chunk chunk) {
+        // Находим все кабели в этом чанке
+        List<Location> toRemove = new ArrayList<>();
+
+        for (Location loc : cableCache.keySet()) {
+            if (loc.getChunk().equals(chunk)) {
+                toRemove.add(loc);
+            }
+        }
+
+        // Уведомляем NetworkManager перед удалением
+        if (networkManager != null) {
+            for (Location loc : toRemove) {
+                networkManager.onCableRemoved(loc);
+            }
+        }
+
+        // Удаляем из кэша
+        toRemove.forEach(cableCache::remove);
+
+        LogUtil.warn("Выгружено " + toRemove.size() + " кабелей в чанке " +
+                chunk.getX() + "," + chunk.getZ());
+    }
+
+    /**
+     * Загрузить все кабели из загруженных чанков
+     */
+    public void loadAllCables() {
+        for (World world : Bukkit.getWorlds()) {
+            for (Chunk chunk : world.getLoadedChunks()) {
+                loadCablesInChunk(chunk);
+            }
+        }
+    }
+
+    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
+
+    /**
+     * Получить соседей для локации (используется NetworkManager)
+     */
+    public Set<Location> getNeighbors(Location loc) {
+        Set<Location> neighbors = new HashSet<>();
+        Block block = loc.getBlock();
+
+        BlockFace[] faces = {
+                BlockFace.NORTH, BlockFace.SOUTH,
+                BlockFace.EAST, BlockFace.WEST,
+                BlockFace.UP, BlockFace.DOWN
+        };
+
+        for (BlockFace face : faces) {
+            Block neighbor = block.getRelative(face);
+            Location neighborLoc = neighbor.getLocation();
+
+            // Проверяем все типы механизмов
+            if (isCable(neighbor) ||
+                    (generatorManager != null && generatorManager.hasMechanism(neighborLoc)) ||
+                    (barrierManager != null && barrierManager.hasMechanism(neighborLoc))) {
+                neighbors.add(neighborLoc);
+            }
+        }
+
+        return neighbors;
     }
 
     /**
@@ -353,10 +396,18 @@ public class CableManager {
     }
 
     /**
-     * Очистить кэш (при выключении)
+     * Очистить кэш
      */
     public void clearCache() {
         cableCache.clear();
         LogUtil.info("Кэш кабелей очищен");
+    }
+
+    /**
+     * Обновить все кабели (периодический тик)
+     */
+    public void tick() {
+        // Ничего не делаем - вся логика в NetworkManager
+        // Кабели только хранят данные о соседях
     }
 }
